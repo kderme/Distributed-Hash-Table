@@ -2,13 +2,11 @@ package dht;
 
 import java.util.Hashtable;
 
-public class RoutingServer {
+public class Server {
 	Hashtable<String,String> data = null;
 	int isMaster;
-	int lastRouting;
-	String nextServer;
-	String prevServr;
-	public RoutingServer(boolean master)
+	
+	public Server(boolean master)
 	{
 		isMaster=master;
 		data= new Hashtable<String, String>();
