@@ -4,12 +4,15 @@ import java.util.Hashtable;
 
 public class Server {
 	Hashtable<String,String> data = null;
-	int isMaster;
-	
-	public Server(boolean master)
+	boolean isMaster;
+	String leastHash=null;
+	String maxHash=null;
+	public Server(boolean master,String least,String max)
 	{
 		isMaster=master;
 		data= new Hashtable<String, String>();
+		leastHash=least;
+		maxHash=max;
 	}
 	public String hashString(String value)
 	{
@@ -18,6 +21,7 @@ public class Server {
 	
 	public boolean insert(String key, String value)
 	{
-		
+		data.put(key,value);
+		return true;
 	}
 }
