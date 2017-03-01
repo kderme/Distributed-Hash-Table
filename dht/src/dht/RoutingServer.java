@@ -9,7 +9,7 @@ import java.net.UnknownHostException;
 
 import org.apache.commons.codec.digest.DigestUtils;
 
-public class RoutingServer {
+public class RoutingServer extends Thread{
 	private String myIp,oneIp;
 	private int myPort,onePort;
 	private int k; //copies, default is 1, which means no copies
@@ -19,7 +19,6 @@ public class RoutingServer {
 	private String myShaId;
 	
 	private Socket socketOne, socketNext=null;
-	ServerSocket socketPrev;
 	private PrintWriter outOne, outNext=null;
 	private BufferedReader inOne;
 
@@ -37,9 +36,9 @@ public class RoutingServer {
 	
 	/*
 	 * 		Me:		Hello-<myIp>:<myPort>
-	 * 		One:	<yourId>-<ipNext>:<portNext>-start-end
+	 * 		One:	<yourId>-<start>-<end>-<ipNext>:<portNext>
 	 */
-	private void start (){
+	public void run(){
 		
 		try {
 			socketOne = new Socket(oneIp, onePort);
@@ -112,10 +111,10 @@ public class RoutingServer {
 	
 	private void listen(){
 		try{
-		socketPrev = new ServerSocket(myPort);
+		ServerSocket srvSocket= new ServerSocket(myPort,7); //backlog (max queue)
 		System.out.println("Listening");
 		while(true){
-			Socket sock=socketPrev.accept();
+			Socket sock=srvSocket.accept();
 			System.out.println("Connected");
 			BufferedReader inPrev = new BufferedReader(
 	                new InputStreamReader(sock.getInputStream()));
@@ -131,7 +130,7 @@ public class RoutingServer {
 			}
 	
 			if(newMessage.startsWith("One-")){
-				//	Some change happened (someone died)
+				//	Some change happened (someone left or came)
 				//  One-ipNext:portNext
 				connectWithNext(newMessage.split("-")[1]);
 				continue;
@@ -139,6 +138,7 @@ public class RoutingServer {
 			
 			if(newMessage.startsWith("OneLeft-")){
 				//  TODO : One Died ?
+				continue;
 			}
 
 			String sendMessage;
