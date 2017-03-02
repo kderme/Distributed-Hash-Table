@@ -15,8 +15,8 @@ public class RoutingServer extends Thread{
 	private int k; //copies, default is 1, which means no copies
 	private Server Server;
 	
-	private int myId;
-	private String myShaId;
+	protected int myId;
+	protected String myShaId;
 	
 	private ServerSocket srvSocket=null;
 	private Socket socketOne, socketNext=null;
@@ -151,11 +151,17 @@ public class RoutingServer extends Thread{
 				continue;
 			}
 			
-			if(newMessage.startsWith("NewRange-")){
+			if(newMessage.startsWith("NewHigh-")){
+				//New Range due to new Node in network
+				String[] ranges=newMessage.split("-");
+				end=Long.parseLong(ranges[1]);
+				continue;
+			}
+			
+			if(newMessage.startsWith("NewLow-")){
 				//New Range due to new Node in network
 				String[] ranges=newMessage.split("-");
 				start=Long.parseLong(ranges[1]);
-				end=Long.parseLong(ranges[2]);
 				continue;
 			}
 			
@@ -222,11 +228,11 @@ public class RoutingServer extends Thread{
 		return null;
 	}
 	
-	private String hash(String s){
+	protected String hash(String s){
 		return org.apache.commons.codec.digest.DigestUtils.sha1Hex("");
 	}
 	
-	private String hash(int n){
+	protected String hash(int n){
 		return hash(n+"");
 	}
 	
