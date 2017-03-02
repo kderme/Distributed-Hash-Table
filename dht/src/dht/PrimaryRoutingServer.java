@@ -54,7 +54,7 @@ public class PrimaryRoutingServer extends RoutingServer {
 			else high=((long)Math.pow(2,32))-1; 
 			String[] network=current_value.split(":");
 			try {
-				CltSocket=new Socket(network[0],Integer.parseInt(network[2]));
+				CltSocket=new Socket(network[0],Integer.parseInt(network[1]));
 				new PrintWriter(CltSocket.getOutputStream(), true).println("NewRange-"+low+"-"+high);
 				CltSocket.close();
 			} catch (IOException e) {
@@ -103,8 +103,85 @@ public class PrimaryRoutingServer extends RoutingServer {
 			   }
 	}
 	
-	public String newNode(String message)
+	public void updateNext(int id,String message)
 	{
+		if(id==1)
+		{
+			try {
+				connectWithNext(message);
+				return;
+			} catch (IOException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
+		}
+		String network[]=networkIds.get(Integer.valueOf(id).toString()).split(":");
+		try {
+			CltSocket=new Socket(network[0],Integer.parseInt(network[1]));
+			new PrintWriter(CltSocket.getOutputStream(), true).println("One-"+message);
+			CltSocket.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+			System.out.println("Id "+id+" din`t respond! Exit");
+			System.exit(1);
+		}
+	}
+	
+	public void updateNext(String id)
+	{
+		Iterator<String> iter=networkIds.keySet().iterator();
+		String prev_key=iter.next();
+		String curr_key;
+		String next_key;
+		String result="One-";
+		String current_value,next_value;
+		while(iter.hasNext())
+		{
+			curr_key=iter.next();
+			if(curr_key.equals(id))
+			{
+				current_value=networkIds.get(prev_key);
+				if(iter.hasNext())
+				{
+					next_key=iter.next();
+				}
+				else next_key="1";
+				next_value=networkIds.get(next_key);
+				if(prev_key.equals("1"))
+				{
+					try {
+						connectWithNext(next_value);
+						return;
+					} catch (IOException e1) {
+						System.out.println("Id 1 encountered Error! Exit");
+						e1.printStackTrace();
+						System.exit(1);
+					}
+				}
+				else
+				{
+					result=result+next_value;
+					String[] network=current_value.split(":");
+					try {
+						CltSocket=new Socket(network[0],Integer.parseInt(network[1]));
+						new PrintWriter(CltSocket.getOutputStream(), true).println(result);
+						CltSocket.close();
+						return;
+					} catch (IOException e) {
+						e.printStackTrace();
+						System.out.println("Id "+prev_key+" din`t respond! Exit");
+						System.exit(1);
+					}
+				}
+			}
+			prev_key=curr_key;
+		}
+		return;
+	}
+	
+	public String newNode(String message)//message is the ip:port
+	{
+		updateNext(lastIdGiven,message);
 		lastIdGiven++;
 		nodesNumber++;
 		networkIds.put(Integer.valueOf(lastIdGiven).toString(),message);
@@ -114,9 +191,10 @@ public class PrimaryRoutingServer extends RoutingServer {
 		return result;
 	}
 	
-	public String removeNode(String message)
+	public String removeNode(String message)//message is the key 
 	{
 		if(!networkIds.containsKey(message)) return "Nonexistent";
+		updateNext(message);
 		nodesNumber--;
 		networkIds.remove(message);
 		calculateNewRanges();
