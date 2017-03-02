@@ -95,27 +95,22 @@ public class PrimaryRoutingServer extends RoutingServer {
 		String result="";
 		String current_value;
 		Long new_low, new_high;
-		if(prev_key.equals("")) new_low=0L;
-		else new_low=Long.valueOf(prev_key)+1;
-		if(next_key.equals("")) new_high=Long.MAX_VALUE;
-		else new_high=Long.valueOf(new_key);
-		if(!next_key.equals(""))
-		{
-			current_value=networkIds.get(next_key);
-			String[] network=current_value.split(":");
-			Long next_low=Long.valueOf(new_key)+1;
-			if (next_key.equals(myShaId)) start=next_low;
-			else
-			{	
-				try {
-					CltSocket=new Socket(network[0],Integer.parseInt(network[1]));
-					new PrintWriter(CltSocket.getOutputStream(), true).println("NewLow-"+next_low.toString());
-					CltSocket.close();
-				} catch (IOException e) {
-					e.printStackTrace();
-					System.out.println("Id "+next_key+" didn't respond! Exit");
-					System.exit(1);
-				}
+		new_low=Long.valueOf(prev_key)+1;
+		new_high=Long.valueOf(new_key);
+		current_value=networkIds.get(next_key);
+		String[] network=current_value.split(":");
+		Long next_low=Long.valueOf(new_key)+1;
+		if (next_key.equals(myShaId)) start=next_low;
+		else
+		{	
+			try {
+				CltSocket=new Socket(network[0],Integer.parseInt(network[1]));
+				new PrintWriter(CltSocket.getOutputStream(), true).println("NewLow-"+next_low.toString());
+				CltSocket.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+				System.out.println("Id "+next_key+" didn't respond! Exit");
+				System.exit(1);
 			}
 		}
 		result=new_low.toString()+"-"+new_high.toString();
@@ -125,44 +120,21 @@ public class PrimaryRoutingServer extends RoutingServer {
 	private void mergeRanges(String prev_key, String next_key)
 	{
 		String current_value;
-		if(next_key.equals(""))
-		{
-			current_value=networkIds.get(prev_key);
-			String[] network=current_value.split(":");
-			Long prev_high=Long.MAX_VALUE;
-			if(prev_key.equals(myShaId)) end=prev_high;
-			else
-			{
-				try {
-					CltSocket=new Socket(network[0],Integer.parseInt(network[1]));
-					new PrintWriter(CltSocket.getOutputStream(), true).println("NewHigh-"+prev_high.toString());
-					CltSocket.close();
-				} catch (IOException e) {
-					e.printStackTrace();
-					System.out.println("Id "+prev_key+" didn't respond! Exit");
-					System.exit(1);
-				}
-			}
-		}
+		current_value=networkIds.get(next_key);
+		String[] network=current_value.split(":");
+		Long next_low;
+		next_low=Long.valueOf(prev_key)+1;
+		if(next_key.equals(myShaId)) start=next_low;
 		else
 		{
-			current_value=networkIds.get(next_key);
-			String[] network=current_value.split(":");
-			Long next_low;
-			if(prev_key.equals("")) next_low=0L;
-			else next_low=Long.valueOf(prev_key)+1;
-			if(next_key.equals(myShaId)) start=next_low;
-			else
-			{
-				try {
-					CltSocket=new Socket(network[0],Integer.parseInt(network[1]));
-					new PrintWriter(CltSocket.getOutputStream(), true).println("NewLow-"+next_low.toString());
-					CltSocket.close();
-				} catch (IOException e) {
-					e.printStackTrace();
-					System.out.println("Id "+next_key+" didn't respond! Exit");
-					System.exit(1);
-				}
+			try {
+				CltSocket=new Socket(network[0],Integer.parseInt(network[1]));
+				new PrintWriter(CltSocket.getOutputStream(), true).println("NewLow-"+next_low.toString());
+				CltSocket.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+				System.out.println("Id "+next_key+" didn't respond! Exit");
+				System.exit(1);
 			}
 		}
 	}
@@ -177,12 +149,10 @@ public class PrimaryRoutingServer extends RoutingServer {
 		else prev_key=networkIds.headMap(shaId).lastKey();
 		current_value=networkIds.get(prev_key);
 		updateNext(current_value,message);
-		if(networkIds.headMap(shaId).isEmpty()) prev_key="";
 		String next_key;
 		if(networkIds.tailMap(shaId).isEmpty()) next_key=networkIds.firstKey();
 		else next_key=networkIds.tailMap(shaId).firstKey();
 		current_value=networkIds.get(next_key);
-		if(networkIds.tailMap(shaId).isEmpty()) next_key="";
 		networkIds.put(shaId,message);
 		String result="";
 		result=result+lastIdGiven+"-"+divideRanges(prev_key,shaId,next_key);
@@ -198,12 +168,10 @@ public class PrimaryRoutingServer extends RoutingServer {
 		if (networkIds.headMap(message).isEmpty()) prev_key=networkIds.lastKey();
 		else prev_key=networkIds.headMap(message).lastKey();
 		String prev_value=networkIds.get(prev_key);
-		if (networkIds.headMap(message).isEmpty()) prev_key="";
 		String next_key;
 		if(networkIds.tailMap(message).isEmpty()) next_key=networkIds.firstKey();
 		else next_key=networkIds.tailMap(message).firstKey();
 		String curr_value=networkIds.get(next_key);
-		if(networkIds.tailMap(message).isEmpty()) next_key="";
 		updateNext(prev_value,curr_value);
 		mergeRanges(prev_key,next_key);
 		return "Removed";
