@@ -10,8 +10,8 @@ import java.net.UnknownHostException;
 import org.apache.commons.codec.digest.DigestUtils;
 
 public class RoutingServer extends Thread{
-	private String myIp,oneIp;
-	private int myPort,onePort;
+	protected String myIp,oneIp;
+	protected int myPort,onePort;
 	private int k; //copies, default is 1, which means no copies
 	private Server Server;
 	
@@ -23,9 +23,9 @@ public class RoutingServer extends Thread{
 	private BufferedReader inOne;
 
 	RoutingServer previous,next;
-	private long start,end;	
+	protected long start,end;	
 	
-	private RoutingServer(String myIp,int myPort,int k,String oneIp,int onePort){
+	protected RoutingServer(String myIp,int myPort,int k,String oneIp,int onePort){
 		this.myIp=myIp;
 		this.myPort=myPort;
 		this.k=k;
@@ -133,6 +133,14 @@ public class RoutingServer extends Thread{
 				//	Some change happened (someone left or came)
 				//  One-ipNext:portNext
 				connectWithNext(newMessage.split("-")[1]);
+				continue;
+			}
+			
+			if(newMessage.startsWith("NewRange-")){
+				//New Range due to new Node in network
+				String[] ranges=newMessage.split("-");
+				start=Long.parseLong(ranges[1]);
+				end=Long.parseLong(ranges[2]);
 				continue;
 			}
 			
