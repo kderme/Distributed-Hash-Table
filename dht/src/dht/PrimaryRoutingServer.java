@@ -8,64 +8,26 @@ import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.Set;
+import java.util.SortedMap;
 
 public class PrimaryRoutingServer extends RoutingServer {
 
 	private int lastIdGiven;
-	private LinkedHashMap<String,String> networkIds=null;
-	private int nodesNumber;
+	private SortedMap<String,String> networkIds=null;
 	private ServerSocket SrvSocket;
 	private Socket CltSocket;
 	
 	public PrimaryRoutingServer(String myIp,int myPort)
 	{
 		super(myIp,myPort,1,myIp,myPort);
-		nodesNumber=1;
 		lastIdGiven=1;
-		networkIds=new LinkedHashMap<String,String>();
+		myId=lastIdGiven;
+		myShaId=hash(myId);
+		networkIds.put(myShaId,myIp+"-"+myPort);
 		receiveMessages();
 	}
 	
-	private String calculateNewRanges()
-	{
-		long range=(((long)Math.pow(2,32))-1)/nodesNumber;
-		long low=0;
-		long high;
-		String result="";
-		Set<String> allIds = networkIds.keySet();
-		Iterator<String> iter=allIds.iterator();
-		String current_key,current_value;
-		//considering the master node never leaves
-		this.start=low;
-		high=low+range;
-		this.end=high;
-		while(iter.hasNext())
-		{
-			low=high+1;
-			current_key=iter.next();
-			current_value=networkIds.get(current_key);
-			if(iter.hasNext()) 
-			{
-				high=low+range;
-			}
-			else high=((long)Math.pow(2,32))-1; 
-			String[] network=current_value.split(":");
-			try {
-				CltSocket=new Socket(network[0],Integer.parseInt(network[1]));
-				new PrintWriter(CltSocket.getOutputStream(), true).println("NewRange-"+low+"-"+high);
-				CltSocket.close();
-			} catch (IOException e) {
-				e.printStackTrace();
-				System.out.println("Id "+current_key+" din`t respond! Exit");
-				System.exit(1);
-			}
-		}
-		result=low+"-"+high;
-		return result;
-	}
+	
 	
 	private void receiveMessages()
 	{
@@ -103,101 +65,147 @@ public class PrimaryRoutingServer extends RoutingServer {
 			   }
 	}
 	
-	public void updateNext(int id,String message)
+	public void updateNext(String receiver,String message)
 	{
-		if(id==1)
+		if(receiver.equals(myIp+":"+myPort))
 		{
 			try {
 				connectWithNext(message);
 				return;
 			} catch (IOException e1) {
-				// TODO Auto-generated catch block
+				System.out.println("One could not connect with Next");
 				e1.printStackTrace();
+				System.exit(1);
 			}
 		}
-		String network[]=networkIds.get(Integer.valueOf(id).toString()).split(":");
+		String network[]=receiver.split(":");
 		try {
 			CltSocket=new Socket(network[0],Integer.parseInt(network[1]));
 			new PrintWriter(CltSocket.getOutputStream(), true).println("One-"+message);
 			CltSocket.close();
 		} catch (IOException e) {
 			e.printStackTrace();
-			System.out.println("Id "+id+" din`t respond! Exit");
+			System.out.println(receiver+" didn't respond! Exit");
 			System.exit(1);
 		}
 	}
 	
-	public void updateNext(String id)
+	private String divideRanges(String prev_key, String new_key, String next_key)
 	{
-		Iterator<String> iter=networkIds.keySet().iterator();
-		String prev_key=iter.next();
-		String curr_key;
-		String next_key;
-		String result="One-";
-		String current_value,next_value;
-		while(iter.hasNext())
+		String result="";
+		String current_value;
+		Long new_low, new_high;
+		if(prev_key.equals("")) new_low=0L;
+		else new_low=Long.valueOf(prev_key)+1;
+		if(next_key.equals("")) new_high=Long.MAX_VALUE;
+		else new_high=Long.valueOf(new_key);
+		if(!next_key.equals(""))
 		{
-			curr_key=iter.next();
-			if(curr_key.equals(id))
-			{
-				current_value=networkIds.get(prev_key);
-				if(iter.hasNext())
-				{
-					next_key=iter.next();
-				}
-				else next_key="1";
-				next_value=networkIds.get(next_key);
-				if(prev_key.equals("1"))
-				{
-					try {
-						connectWithNext(next_value);
-						return;
-					} catch (IOException e1) {
-						System.out.println("Id 1 encountered Error! Exit");
-						e1.printStackTrace();
-						System.exit(1);
-					}
-				}
-				else
-				{
-					result=result+next_value;
-					String[] network=current_value.split(":");
-					try {
-						CltSocket=new Socket(network[0],Integer.parseInt(network[1]));
-						new PrintWriter(CltSocket.getOutputStream(), true).println(result);
-						CltSocket.close();
-						return;
-					} catch (IOException e) {
-						e.printStackTrace();
-						System.out.println("Id "+prev_key+" din`t respond! Exit");
-						System.exit(1);
-					}
+			current_value=networkIds.get(next_key);
+			String[] network=current_value.split(":");
+			Long next_low=Long.valueOf(new_key)+1;
+			if (next_key.equals(myShaId)) start=next_low;
+			else
+			{	
+				try {
+					CltSocket=new Socket(network[0],Integer.parseInt(network[1]));
+					new PrintWriter(CltSocket.getOutputStream(), true).println("NewLow-"+next_low.toString());
+					CltSocket.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+					System.out.println("Id "+next_key+" didn't respond! Exit");
+					System.exit(1);
 				}
 			}
-			prev_key=curr_key;
 		}
-		return;
+		result=new_low.toString()+"-"+new_high.toString();
+		return result;
+	}
+	
+	private void mergeRanges(String prev_key, String next_key)
+	{
+		String current_value;
+		if(next_key.equals(""))
+		{
+			current_value=networkIds.get(prev_key);
+			String[] network=current_value.split(":");
+			Long prev_high=Long.MAX_VALUE;
+			if(prev_key.equals(myShaId)) end=prev_high;
+			else
+			{
+				try {
+					CltSocket=new Socket(network[0],Integer.parseInt(network[1]));
+					new PrintWriter(CltSocket.getOutputStream(), true).println("NewHigh-"+prev_high.toString());
+					CltSocket.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+					System.out.println("Id "+prev_key+" didn't respond! Exit");
+					System.exit(1);
+				}
+			}
+		}
+		else
+		{
+			current_value=networkIds.get(next_key);
+			String[] network=current_value.split(":");
+			Long next_low;
+			if(prev_key.equals("")) next_low=0L;
+			else next_low=Long.valueOf(prev_key)+1;
+			if(next_key.equals(myShaId)) start=next_low;
+			else
+			{
+				try {
+					CltSocket=new Socket(network[0],Integer.parseInt(network[1]));
+					new PrintWriter(CltSocket.getOutputStream(), true).println("NewLow-"+next_low.toString());
+					CltSocket.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+					System.out.println("Id "+next_key+" didn't respond! Exit");
+					System.exit(1);
+				}
+			}
+		}
 	}
 	
 	public String newNode(String message)//message is the ip:port
 	{
-		updateNext(lastIdGiven,message);
 		lastIdGiven++;
-		nodesNumber++;
-		networkIds.put(Integer.valueOf(lastIdGiven).toString(),message);
+		String shaId=hash(lastIdGiven);
+		String prev_key;
+		String current_value="";
+		if(networkIds.headMap(shaId).isEmpty()) prev_key=networkIds.lastKey();
+		else prev_key=networkIds.headMap(shaId).lastKey();
+		current_value=networkIds.get(prev_key);
+		updateNext(current_value,message);
+		if(networkIds.headMap(shaId).isEmpty()) prev_key="";
+		String next_key;
+		if(networkIds.tailMap(shaId).isEmpty()) next_key=networkIds.firstKey();
+		else next_key=networkIds.tailMap(shaId).firstKey();
+		current_value=networkIds.get(next_key);
+		if(networkIds.tailMap(shaId).isEmpty()) next_key="";
+		networkIds.put(shaId,message);
 		String result="";
-		result=result+lastIdGiven+"-"+calculateNewRanges();
-		result=result+"-"+this.myIp+":"+this.myPort;
+		result=result+lastIdGiven+"-"+divideRanges(prev_key,shaId,next_key);
+		result=result+"-"+current_value;
 		return result;
 	}
 	
 	public String removeNode(String message)//message is the key 
 	{
 		if(!networkIds.containsKey(message)) return "Nonexistent";
-		updateNext(message);
-		nodesNumber--;
 		networkIds.remove(message);
-		calculateNewRanges();
+		String prev_key;
+		if (networkIds.headMap(message).isEmpty()) prev_key=networkIds.lastKey();
+		else prev_key=networkIds.headMap(message).lastKey();
+		String prev_value=networkIds.get(prev_key);
+		if (networkIds.headMap(message).isEmpty()) prev_key="";
+		String next_key;
+		if(networkIds.tailMap(message).isEmpty()) next_key=networkIds.firstKey();
+		else next_key=networkIds.tailMap(message).firstKey();
+		String curr_value=networkIds.get(next_key);
+		if(networkIds.tailMap(message).isEmpty()) next_key="";
+		updateNext(prev_value,curr_value);
+		mergeRanges(prev_key,next_key);
 		return "Removed";
 	}
 	
