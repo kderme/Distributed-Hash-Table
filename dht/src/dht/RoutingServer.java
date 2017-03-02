@@ -18,6 +18,7 @@ public class RoutingServer extends Thread{
 	private int myId;
 	private String myShaId;
 	
+	private ServerSocket srvSocket=null;
 	private Socket socketOne, socketNext=null;
 	private PrintWriter outOne, outNext=null;
 	private BufferedReader inOne;
@@ -95,23 +96,32 @@ public class RoutingServer extends Thread{
 		outNext = new PrintWriter(socketNext.getOutputStream(), true);
 	}
 	
-	public void sendMessage(String iPort,String message){
-	try{	
+	private boolean sendMessage(String ip, int port, String message){
+		try{
+			Socket socket = new Socket(ip,port);
+			PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+			out.println(message);
+			socket.close();
+			return true;
+		} catch(IOException e){
+			e.printStackTrace();
+			return false;
+		}
+	}
+	
+	public boolean sendMessage(String iPort,String message){
+		
 		//---take routing info
 		String next []=iPort.split(":");
 		
-		Socket socket = new Socket(next[0],new Integer(next[1]));
-		PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-		out.println(message);
-		socket.close();
-	} catch(IOException e){
-		e.printStackTrace();
-	}
+		return sendMessage(next[0],new Integer(next[1]),message);
+		
+		
 	}
 	
 	private void listen(){
 		try{
-		ServerSocket srvSocket= new ServerSocket(myPort,7); //backlog (max queue)
+		srvSocket= new ServerSocket(myPort,7); //backlog (max queue)
 		System.out.println("Listening");
 		while(true){
 			Socket sock=srvSocket.accept();
@@ -121,6 +131,11 @@ public class RoutingServer extends Thread{
 			String newMessage=inPrev.readLine();
 			System.out.println(newMessage);
 			
+			if(newMessage.startsWith("Leave")){
+				depart(newMessage);
+				// we may not manage to leave
+				continue;
+			}
 			
 			if (newMessage.startsWith("Answer-")){
 				//if an answer, comes just print it (?)
@@ -177,9 +192,17 @@ public class RoutingServer extends Thread{
 			}
 		}
 	}
+		
 	catch(IOException e){
 		e.printStackTrace();
 	}
+	}
+	
+	public void depart(String leaveMessage){
+		String message="Leaving-"+this.myShaId;
+		boolean success=sendMessage(oneIp,onePort,message);
+		if(success || leaveMessage.startsWith("LeaveForced"))
+			System.exit(0);
 	}
 	
 	private String reform(String[] message) {
@@ -208,7 +231,6 @@ public class RoutingServer extends Thread{
 	}
 	
 	public void main(String [] args){
-		
 		new RoutingServer("127.0.0.1", 5002, 1,"127.0.0.1",5000);
 		start();
 	}
