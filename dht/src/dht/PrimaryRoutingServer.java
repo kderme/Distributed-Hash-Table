@@ -94,18 +94,18 @@ public class PrimaryRoutingServer extends RoutingServer {
 	{
 		String result="";
 		String current_value;
-		Long new_low, new_high;
-		new_low=Long.valueOf(prev_key)+1;
-		new_high=Long.valueOf(new_key);
+		String new_low, new_high;
+		new_low=prev_key;
+		new_high=new_key;
 		current_value=networkIds.get(next_key);
 		String[] network=current_value.split(":");
-		Long next_low=Long.valueOf(new_key)+1;
+		String next_low=new_key;
 		if (next_key.equals(myShaId)) start=next_low;
 		else
 		{	
 			try {
 				CltSocket=new Socket(network[0],Integer.parseInt(network[1]));
-				new PrintWriter(CltSocket.getOutputStream(), true).println("NewLow-"+next_low.toString());
+				new PrintWriter(CltSocket.getOutputStream(), true).println("NewLow-"+next_low);
 				CltSocket.close();
 			} catch (IOException e) {
 				e.printStackTrace();
@@ -113,7 +113,7 @@ public class PrimaryRoutingServer extends RoutingServer {
 				System.exit(1);
 			}
 		}
-		result=new_low.toString()+"-"+new_high.toString();
+		result=new_low+"-"+new_high;
 		return result;
 	}
 	
@@ -122,14 +122,14 @@ public class PrimaryRoutingServer extends RoutingServer {
 		String current_value;
 		current_value=networkIds.get(next_key);
 		String[] network=current_value.split(":");
-		Long next_low;
-		next_low=Long.valueOf(prev_key)+1;
+		String next_low;
+		next_low=prev_key;
 		if(next_key.equals(myShaId)) start=next_low;
 		else
 		{
 			try {
 				CltSocket=new Socket(network[0],Integer.parseInt(network[1]));
-				new PrintWriter(CltSocket.getOutputStream(), true).println("NewLow-"+next_low.toString());
+				new PrintWriter(CltSocket.getOutputStream(), true).println("NewLow-"+next_low);
 				CltSocket.close();
 			} catch (IOException e) {
 				e.printStackTrace();

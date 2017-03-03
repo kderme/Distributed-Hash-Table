@@ -7,9 +7,9 @@ import java.util.SortedMap;
 public class Server {
 	SortedMap<String,String> data = null;
 	boolean isMaster;
-	long leastHash;
-	long maxHash;
-	public Server(boolean master,long least,long max)
+	String leastHash;
+	String maxHash;
+	public Server(boolean master,String least,String max)
 	{
 		isMaster=master;
 		leastHash=least;
@@ -20,12 +20,12 @@ public class Server {
 		return value;//not used yet
 	}
 	
-	public String changeRanges(long low)
+	public String changeRanges(String low)
 	{
 		leastHash=low;
 		String result="";
 		String current_key,current_value;
-		Iterator<String> iter=data.tailMap(Long.valueOf(maxHash).toString()).keySet().iterator();
+		Iterator<String> iter=data.tailMap(maxHash).keySet().iterator();
 		if(iter.hasNext())
 		{
 			current_key=iter.next();
@@ -93,7 +93,7 @@ public class Server {
 		if(split[1].equals("insert")) result="Answer-"+insert(split[0],split[2]);
 		else if (split[1].equals("query")) result="Answer-"+query(split[0]);
 		else if (split[1].equals("delete")) result="Answer-"+delete(split[0]);
-		else if (split[0].equals("NewRange")) result="Data-"+changeRanges(Long.parseLong(split[1]));
+		else if (split[0].equals("NewRange")) result="Data-"+changeRanges(split[1]);
 		else if (split[0].equals("NewData")) result=newData(split[1]);
 		else if (split[0].equals("Leaving")) result="Data-"+sendData();
 		else result="Error";
