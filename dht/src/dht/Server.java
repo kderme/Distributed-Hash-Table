@@ -19,7 +19,7 @@ public class Server {
 	{
 		return value;//not used yet
 	}
-	
+
 	public String changeRanges(String low)
 	{
 		leastHash=low;
@@ -93,9 +93,9 @@ public class Server {
 		if(split[1].equals("insert")) result="Answer-"+insert(split[0],split[2]);
 		else if (split[1].equals("query")) result="Answer-"+query(split[0]);
 		else if (split[1].equals("delete")) result="Answer-"+delete(split[0]);
-		else if (split[0].equals("NewRange")) result="Data-"+changeRanges(split[1]);
-		else if (split[0].equals("NewData")) result=newData(split[1]);
-		else if (split[0].equals("Leaving")) result="Data-"+sendData();
+		else if (split[0].equals("NewRange")) result="BULK-"+changeRanges(split[1]);
+		else if (split[0].equals("BULK")) result=newData(split[1]);
+		else if (split[0].equals("Leaving")) result="BULK-"+sendData();
 		else result="Error";
 		return result;
 	}

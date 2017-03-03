@@ -22,14 +22,13 @@ public class RoutingServer extends Thread{
 	protected int myPort,onePort;
 	private int k; //copies, default is 1, which means no copies
 	private Server Server;
+	protected Console console;
 	
 	protected int myId;
 	protected String myShaId;
 	
-	private ServerSocket srvSocket=null;
 	private Socket socketOne, socketNext=null;
-	private PrintWriter outOne, outNext=null;
-	private BufferedReader inOne;
+	private PrintWriter outNext=null;
 
 	  // A pre-allocated buffer for encrypting data
 	  private final ByteBuffer buffer = ByteBuffer.allocate( 16384 );
@@ -37,7 +36,7 @@ public class RoutingServer extends Thread{
 	RoutingServer previous,next;
 	protected String start,end;
 	protected boolean amiFirst=false;
-	
+
 	protected RoutingServer(String myIp,int myPort,int k,String oneIp,int onePort){
 		this.myIp=myIp;
 		this.myPort=myPort;
@@ -45,47 +44,52 @@ public class RoutingServer extends Thread{
 		this.oneIp=oneIp;
 		this.onePort=onePort;
 		this.Server=new Server(false,"",""); 
+		this.console=new Console();
 	}
-	
+
 	/*
 	 * 		Me:		Hello-<myIp>:<myPort>
 	 * 		One:	<yourId>-<start>-<end>-<ipNext>:<portNext>
 	 */
 	public void run(){
+		console.logEntry();
 		try {
 			socketOne = new Socket(oneIp, onePort);
-			outOne= new PrintWriter(socketOne.getOutputStream(), true);
-			inOne = new BufferedReader(
+			PrintWriter outOne= new PrintWriter(socketOne.getOutputStream(), true);
+			BufferedReader inOne = new BufferedReader(
 	                new InputStreamReader(socketOne.getInputStream()));
 
 			//inform One
 			outOne.println("Hello-"+myIp+":"+myPort);
-			
+
 			//take first message from One
 			String master =inOne.readLine();
 			String [] spl=master.split("-");
-			
+
 			//---take id
 			String mySid = spl[0];
 			myId = new Integer(mySid);
 			myShaId = hash(mySid);
 
 			//----take range
-			long start=new Long(spl[1]);
-			long end=new Long(spl[2]);
+			start=spl[1];
+			end=spl[2];
 			
 			connectWithNext(spl[3]);
+			
+			
 
 		} catch (IOException e) {
 			e.printStackTrace();
 			System.out.println("One din`t respond! Exit");
 			System.exit(1);
 		}
-		
+
 		listen();
 	}
-	
+
 	private void listen(){
+		console.logEntry();
 	    try {
 	        // Instead of creating a ServerSocket,
 	        // create a ServerSocketChannel
@@ -117,7 +121,7 @@ public class RoutingServer extends Thread{
 	          // If we don't have any activity, loop around and wait
 	          // again
 	          if (num == 0) {
-	            System.out.println("num==0");
+	            console.log("num==0");
 	            continue;
 	          }
 
@@ -135,7 +139,7 @@ public class RoutingServer extends Thread{
 	            if ((key.readyOps() & SelectionKey.OP_ACCEPT) ==
 	              SelectionKey.OP_ACCEPT) {
 
-	  System.out.println( "acc" );
+	            	console.log( "New connection" );
 	              // It's an incoming connection.
 	              // Register this socket with the Selector
 	              // so we can listen for input on it
@@ -153,6 +157,7 @@ public class RoutingServer extends Thread{
 	            } else if ((key.readyOps() & SelectionKey.OP_READ) ==
 	              SelectionKey.OP_READ) {
 
+	              console.log("New Data");
 	              SocketChannel sc = null;
 
 	              try {
@@ -172,7 +177,7 @@ public class RoutingServer extends Thread{
 	                    s = sc.socket();
 	                    s.close();
 	                  } catch( IOException ie ) {
-	                    System.err.println( "Error closing socket "+s+": "+ie );
+	                    console.log( "Error closing socket "+s+": "+ie );
 	                  }
 	                }
 
@@ -180,12 +185,12 @@ public class RoutingServer extends Thread{
 
 	                // On exception, remove this channel from the selector
 	                key.cancel();
-
+	                //TODO also close it if it`s not One or Prev. Find this out from processInput
 	                try {
 	                  sc.close();
-	                } catch( IOException ie2 ) { System.out.println( ie2 ); }
+	                } catch( IOException ie2 ) { console.log( ie2 ); }
 
-	                System.out.println( "Closed "+sc );
+	                console.log( "Closed "+sc );
 	              }
 	            }
 	          }
@@ -198,72 +203,49 @@ public class RoutingServer extends Thread{
 	        System.err.println( ie );
 	      }
 	    }
-		
-	      private boolean processInput( SocketChannel sc ) throws IOException {
-	    	    buffer.clear();
-	    	    sc.read( buffer );
-	    	    buffer.flip();
 
-	    	    // If no data, close the connection
-	    	    if (buffer.limit()==0) {
-	    	      return false;
-	    	    }
-	    	    byte[] bytes=buffer.array();
-	    	    String newMessage=new String(bytes,java.nio.charset.StandardCharsets.UTF_8); //check encoding
-	    	    processMessage(newMessage);
-	    	    sc.write( buffer );
+  private boolean processInput( SocketChannel sc ) throws IOException {
+	    console.logEntry();
+	    buffer.clear();
+	    sc.read( buffer );
+	    buffer.flip();
 
-	    	    System.out.println( "Processed "+buffer.limit()+" from "+sc );
+	    // If no data, close the connection
+	    if (buffer.limit()==0) {
+	      return false;
+	    }
+	    byte[] bytes=buffer.array();
+	    
+	    String newMessage=new String(bytes,java.nio.charset.StandardCharsets.UTF_8); //check encoding
+	    processMessage(newMessage);
+	    
+	   // sc.write( buffer );
+	    console.logExit();
+	    return true;
+	  }
 
-	    	    return true;
-	    	  }
-
-	
-	private void listen_old(){
-		try{
-		srvSocket= new ServerSocket(myPort,7); //backlog (max queue)
-		System.out.println("Listening");
-		while(true){
-			Socket sock=srvSocket.accept();
-			System.out.println("Connected");
-			BufferedReader inPrev = new BufferedReader(
-	                new InputStreamReader(sock.getInputStream()));
-			String newMessage=inPrev.readLine();
-			System.out.println(newMessage);
-		
-			processMessage(newMessage);
-			
-					}
-	}	
-	catch(IOException e){
-		e.printStackTrace();
-	}
-	}
-	
-	/*
-	 * This function is called at start or when 
-	 * a routing change happens (someone left or came)
-	 * iPort=<Ip>:<Port>
-	 */
-	
 	protected void processMessage(String newMessage){
+		console.logEntry();
+		console.log("newMessage:" +newMessage);
 		if(newMessage.startsWith("Leave")){
 			depart(newMessage);
 			// we may not manage to leave
 			return;
 		}
 		
-		if (newMessage.startsWith("Answer-")){
+		if (newMessage.startsWith("ANSWER-")){
 			//if an answer, comes just print it (?)
 			//	Answer-<answer>
 			System.out.println(newMessage.split("-")[1]);
 			return;
 		}
 
-		if(newMessage.startsWith("One-")){
+		if(newMessage.startsWith("NEWNEXT-")){
 			//	Some change happened (someone left or came)
 			//  One-ipNext:portNext
-			try{connectWithNext(newMessage.split("-")[1]);}
+			try{
+				connectWithNext(newMessage.split("-")[1]);
+			}
 			catch(IOException e){
 				e.printStackTrace();
 				System.out.println("error while connecting with next");
@@ -271,28 +253,40 @@ public class RoutingServer extends Thread{
 			}
 			return;
 		}
-		
-		
-		if(newMessage.startsWith("NewHigh-")){
+
+		if(newMessage.startsWith("NEWLOW-")){
 			//New Range due to new Node in network
-			String[] ranges=newMessage.split("-");
-			start=ranges[1];
+			String[] spl=newMessage.split("-");
+			start=spl[1];
 			amiFirst=(compareHash(start,myShaId)>=0);
+			if(spl.length==3){
+				// this means range become smaller (new came) so let`s send data at prev (=new)
+				String reply=Server.action("NewRange-"+start);
+				sendMessage(spl[2],reply);
+			}
 			return;
 		}
-		
-		if(newMessage.startsWith("OneLeft-")){
+
+		if(newMessage.startsWith("BULK-")){
+//			String data=newMessage.split("-",2)[1];
+			String answer=Server.action(newMessage);
+			if(!answer.equals("OK"))
+				depart("LeaveForced");
+			return;
+		}
+
+		if(newMessage.startsWith("ONELEFT-")){
 			//  TODO : One Died ?
 			return;
 		}
 
 		String sendMessage;
-		if(!newMessage.contains("#")){
+		if(!newMessage.startsWith("#")){
 			/* 
 			 * If this is the first hop
-			 * add my ip:port# to take Answer
+			 * add my #ip:port# to take Answer
 			 */
-			sendMessage=myIp+":"+myPort+"#"+newMessage;
+			sendMessage="#"+myIp+":"+myPort+"#"+newMessage;
 		}
 		else{
 			//	else toss final ip
@@ -315,6 +309,12 @@ public class RoutingServer extends Thread{
 
 	}
 	
+	/*
+	 * This function is called at start or when 
+	 * a routing change happens (someone left or came)
+	 * iPort=<Ip>:<Port>
+	 */
+	
 	public void connectWithNext(String iPort) throws IOException{
 
 		//---take routing info
@@ -330,13 +330,22 @@ public class RoutingServer extends Thread{
 		socketNext = new Socket(next[0],new Integer(next[1]));
 		outNext = new PrintWriter(socketNext.getOutputStream(), true);
 	}
+
 	public void depart(String leaveMessage){
+		console.logEntry();
 		String message="Leaving-"+this.myShaId;
 		boolean success=sendMessage(oneIp,onePort,message);
-		if(success || leaveMessage.startsWith("LeaveForced"))
-			System.exit(0);
+		if(!(success || leaveMessage.startsWith("LeaveForced"))){
+			console.logExit();
+			return;
+		}
+		//ready to leave
+		String leave="Leaving";
+		String myData=Server.action(leave);
+		this.outNext.println(myData);
+		System.exit(0);
 	}
-	
+
 	private String reform(String[] message) {
 		/*
 		 * TODO read how many copies already done 
@@ -346,13 +355,11 @@ public class RoutingServer extends Thread{
 	}
 
 	protected boolean isMine(String key) {
-		if (amiFirst){
-			return (  compareHash(start,key)<0  &&  compareHash(key,getMaxSha1())<0 )
-				|| (  compareHash(getZeroSha1(),key)<0  &&  compareHash(key,end)<0  ) ;
-		}
+		if (amiFirst)
+			return compareHash(start,key)<0 || compareHash(key,end)<0 ;
 		return compareHash(start,key)<0  && compareHash(key,end)<0 ;
 	}
-	
+
 	private String getZeroSha1() {
 		// TODO Auto-generated method stub
 		String zero="0000000000";	//10 
@@ -360,7 +367,7 @@ public class RoutingServer extends Thread{
 	}
 
 	private String getMaxSha1() {
-		// TODO find decoding used for 2**160
+		// TODO find decoding used for 2**160-1
 		return null;
 	}
 
@@ -372,8 +379,8 @@ public class RoutingServer extends Thread{
 		}
 		return 0;
 	}
-	
-	private boolean sendMessage(String ip, int port, String message){
+
+	protected boolean sendMessage(String ip, int port, String message){
 		try{
 			Socket socket = new Socket(ip,port);
 			PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
@@ -385,16 +392,35 @@ public class RoutingServer extends Thread{
 			return false;
 		}
 	}
-	
-	public boolean sendMessage(String iPort,String message){
+
+	protected boolean sendMessage(String iPort,String message){
 		
 		//---take routing info
 		String next []=iPort.split(":");
 		
 		return sendMessage(next[0],new Integer(next[1]),message);
-		
-		
 	}
+
+	private void listen_old(){
+		try{
+			ServerSocket srvSocket= new ServerSocket(myPort,7); //backlog (max queue)
+		System.out.println("Listening");
+		while(true){
+			Socket sock=srvSocket.accept();
+			System.out.println("Connected");
+			BufferedReader inPrev = new BufferedReader(
+	                new InputStreamReader(sock.getInputStream()));
+			String newMessage=inPrev.readLine();
+			System.out.println(newMessage);
+		
+			processMessage(newMessage);
+					}
+	}	
+	catch(IOException e){
+		e.printStackTrace();
+	}
+	}
+	
 	private String getKey(String message) {
 		return null;
 	}
