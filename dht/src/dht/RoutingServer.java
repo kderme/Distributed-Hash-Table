@@ -371,7 +371,7 @@ public class RoutingServer extends Thread{
 		return null;
 	}
 
-	protected int compareHash(String h1,String h2){
+	public static int compareHash(String h1,String h2){
 		for(int i=0;i<40;i++){
 			int d=h1.charAt(i)-h2.charAt(i);
 			if(d!=0)
