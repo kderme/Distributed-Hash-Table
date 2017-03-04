@@ -20,30 +20,28 @@ import org.apache.commons.codec.digest.DigestUtils;
 public class RoutingServer extends Thread{
 	protected String myIp,oneIp;
 	protected int myPort,onePort;
-	private int k; //copies, default is 1, which means no copies
-	private Server Server;
+	protected Server server;
 	protected Console console;
 	
 	protected int myId;
 	protected String myShaId;
 	
-	private Socket socketOne, socketNext=null;
-	private PrintWriter outNext=null;
+	protected Socket socketOne, socketNext=null;
+	protected PrintWriter outNext=null;
 
-	  // A pre-allocated buffer for encrypting data
-	  private final ByteBuffer buffer = ByteBuffer.allocate( 16384 );
+	  // A pre-allocated buffer
+	protected final ByteBuffer buffer = ByteBuffer.allocate( 16384 );
 	
-	RoutingServer previous,next;
+	protected RoutingServer previous,next;
 	protected String start,end;
 	protected boolean amiFirst=false;
 
-	protected RoutingServer(String myIp,int myPort,int k,String oneIp,int onePort){
+	public RoutingServer(String myIp,int myPort,String oneIp,int onePort){
 		this.myIp=myIp;
 		this.myPort=myPort;
-		this.k=k;
 		this.oneIp=oneIp;
 		this.onePort=onePort;
-		this.Server=new Server(false,"",""); 
+		this.server=new Server(false,"",""); 
 		this.console=new Console();
 	}
 
@@ -60,7 +58,7 @@ public class RoutingServer extends Thread{
 	                new InputStreamReader(socketOne.getInputStream()));
 
 			//inform One
-			outOne.println("Hello-"+myIp+":"+myPort);
+			outOne.println("HELLO-"+myIp+":"+myPort);
 
 			//take first message from One
 			String master =inOne.readLine();
@@ -88,7 +86,7 @@ public class RoutingServer extends Thread{
 		listen();
 	}
 
-	private void listen(){
+	protected void listen(){
 		console.logEntry();
 	    try {
 	        // Instead of creating a ServerSocket,
@@ -229,94 +227,76 @@ public class RoutingServer extends Thread{
 		console.log("newMessage:" +newMessage);
 		if(newMessage.startsWith("Leave")){
 			depart(newMessage);
-			// we may not manage to leave
-			return;
 		}
 		
-		if (newMessage.startsWith("ANSWER-")){
-			//if an answer, comes just print it (?)
-			//	Answer-<answer>
+		else if (newMessage.startsWith("ANSWER-")){
+			//	Answer<answer>
 			System.out.println(newMessage.split("-")[1]);
-			return;
 		}
 
-		if(newMessage.startsWith("NEWNEXT-")){
-			//	Some change happened (someone left or came)
-			//  One-ipNext:portNext
-			try{
-				connectWithNext(newMessage.split("-")[1]);
-			}
-			catch(IOException e){
-				e.printStackTrace();
-				System.out.println("error while connecting with next");
-				depart("LeaveForced");
-			}
-			return;
+		else if(newMessage.startsWith("NEWNEXT-")){
+			//  NEWNEXT-ipNext:portNext
+			connectWithNext(newMessage.split("-")[1]);
 		}
 
-		if(newMessage.startsWith("NEWLOW-")){
+		else if(newMessage.startsWith("NEWLOW-")){
 			//New Range due to new Node in network
 			String[] spl=newMessage.split("-");
-			start=spl[1];
-			amiFirst=(compareHash(start,myShaId)>=0);
+			updateStart(spl[1]);
 			if(spl.length==3){
 				// this means range become smaller (new came) so let`s send data at prev (=new)
-				String reply=Server.action("NewRange-"+start);
+				String reply=server.action("NewRange-"+start);
 				sendMessage(spl[2],reply);
 			}
-			return;
 		}
 
-		if(newMessage.startsWith("BULK-")){
-//			String data=newMessage.split("-",2)[1];
-			String answer=Server.action(newMessage);
+		else if(newMessage.startsWith("BULK-")){
+			String answer=server.action(newMessage);
 			if(!answer.equals("OK"))
 				depart("LeaveForced");
-			return;
 		}
 
-		if(newMessage.startsWith("ONELEFT-")){
+		else if(newMessage.startsWith("ONELEFT-")){
 			//  TODO : One Died ?
-			return;
 		}
-
+		else{
+			query(newMessage);
+		}
+	}
+	
+	protected void query(String newMessage){
 		String sendMessage;
 		if(!newMessage.startsWith("#")){
-			/* 
-			 * If this is the first hop
-			 * add my #ip:port# to take Answer
-			 */
+		/* 
+		 * If this is the first hop
+		 * add my #ip:port# to take Answer
+		 */
 			sendMessage="#"+myIp+":"+myPort+"#"+newMessage;
 		}
 		else{
-			//	else toss final ip
 			sendMessage=newMessage;
-			newMessage=newMessage.split("#")[1];
+			//	else toss final ip
+			newMessage=newMessage.split("#")[2];
 		}
 		String [] message=newMessage.split(",");
 		String key=message[0];
-
+		
 		boolean isMine=isMine(key);
 		if (isMine){
-			String answer=Server.action(newMessage);
-			//send back reply
-			sendMessage(sendMessage.split("#")[0], answer);
+			String answer=server.action(newMessage);
+		//	send back reply
+			sendMessage(sendMessage.split("#")[1], answer);
 		}
 		else{
-			
 			outNext.println(sendMessage);
 		}
-
 	}
 	
 	/*
-	 * This function is called at start or when 
-	 * a routing change happens (someone left or came)
 	 * iPort=<Ip>:<Port>
-	 */
-	
-	public void connectWithNext(String iPort) throws IOException{
-
+	 */	
+	public void connectWithNext(String iPort){
+		try {
 		//---take routing info
 		String next []=iPort.split(":");
 							
@@ -324,14 +304,16 @@ public class RoutingServer extends Thread{
 		if(outNext!=null)
 			outNext.close();
 		if(socketNext!=null)
-			socketNext.close();
-		
+				socketNext.close();
 		//open connection with next
 		socketNext = new Socket(next[0],new Integer(next[1]));
 		outNext = new PrintWriter(socketNext.getOutputStream(), true);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	}
-
-	public void depart(String leaveMessage){
+	protected void depart(String leaveMessage){
 		console.logEntry();
 		String message="Leaving-"+this.myShaId;
 		boolean success=sendMessage(oneIp,onePort,message);
@@ -341,17 +323,14 @@ public class RoutingServer extends Thread{
 		}
 		//ready to leave
 		String leave="Leaving";
-		String myData=Server.action(leave);
+		String myData=server.action(leave);
 		this.outNext.println(myData);
 		System.exit(0);
 	}
-
-	private String reform(String[] message) {
-		/*
-		 * TODO read how many copies already done 
-		 * and reduce the amount of copies left
-		 */
-		return message.toString();
+	
+	protected void updateStart(String start) {
+		this.start=start;
+		this.amiFirst=(compareHash(start,myShaId)>=0);		
 	}
 
 	protected boolean isMine(String key) {
@@ -359,18 +338,7 @@ public class RoutingServer extends Thread{
 			return compareHash(start,key)<0 || compareHash(key,end)<0 ;
 		return compareHash(start,key)<0  && compareHash(key,end)<0 ;
 	}
-
-	private String getZeroSha1() {
-		// TODO Auto-generated method stub
-		String zero="0000000000";	//10 
-		return zero+zero+zero+zero;
-	}
-
-	private String getMaxSha1() {
-		// TODO find decoding used for 2**160-1
-		return null;
-	}
-
+	
 	public static int compareHash(String h1,String h2){
 		for(int i=0;i<40;i++){
 			int d=h1.charAt(i)-h2.charAt(i);
@@ -400,31 +368,7 @@ public class RoutingServer extends Thread{
 		
 		return sendMessage(next[0],new Integer(next[1]),message);
 	}
-
-	private void listen_old(){
-		try{
-			ServerSocket srvSocket= new ServerSocket(myPort,7); //backlog (max queue)
-		System.out.println("Listening");
-		while(true){
-			Socket sock=srvSocket.accept();
-			System.out.println("Connected");
-			BufferedReader inPrev = new BufferedReader(
-	                new InputStreamReader(sock.getInputStream()));
-			String newMessage=inPrev.readLine();
-			System.out.println(newMessage);
 		
-			processMessage(newMessage);
-					}
-	}	
-	catch(IOException e){
-		e.printStackTrace();
-	}
-	}
-	
-	private String getKey(String message) {
-		return null;
-	}
-	
 	public static String hash(String s){
 		return org.apache.commons.codec.digest.DigestUtils.sha1Hex("");
 	}
@@ -434,7 +378,7 @@ public class RoutingServer extends Thread{
 	}
 	
 	public void main(String [] args){
-		new RoutingServer("127.0.0.1", 5002, 1,"127.0.0.1",5000);
+		new RoutingServer("127.0.0.1", 5002,"127.0.0.1",5000);
 		start();
 	}
 }
