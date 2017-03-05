@@ -18,7 +18,7 @@ import java.util.Set;
 import org.apache.commons.codec.digest.DigestUtils;
 
 public class ReplicationRoutingServer extends RoutingServer{
-	private int k=1;
+	protected int k=1;
 	protected String startReplica;
 	protected boolean amiCut;
 	private int consistency=0;
@@ -28,26 +28,33 @@ public class ReplicationRoutingServer extends RoutingServer{
 		this.k=k;
 		this.consistency=consistency;
 	}
+	
+	protected void takeAdditionalFromOne(String[] spl) {
+		startReplica=spl[4];
+	}
 
+	protected void initServer() {
+		this.server=new ReplicationServer(false,start,end,k,startReplica,end,consistency);
+	}
+	
 	protected void processMessage(String newMessage){
 		console.logEntry();
 		console.log("newMessage:" +newMessage);
-		if(newMessage.startsWith("LEAVE")){
-			depart(newMessage);
-			console.log("Tried to leave but failed");
-		}
+		
+		if(isItaBasicMessage(newMessage))
+			return;	
+				
+		else if (isItAnotherMessage(newMessage))
+			return;
+				
 
-		else if (newMessage.startsWith("ANSWER-")){
-			//	Answer<answer>
-			System.out.println(newMessage.split("-")[1]);
+		else{
+			query(newMessage);
 		}
-
-		else if(newMessage.startsWith("NEWNEXT-")){
-			//  NEWNEXT-ipNext:portNext
-			connectWithNext(newMessage.split("-")[1]);
-		}
-
-		else if(newMessage.startsWith("NEWLOW")){
+	}
+	
+	protected boolean isItAnotherMessage(String newMessage){
+		if(newMessage.startsWith("NEWLOW")){
 			//New Range due to new Node in network
 			String[] spl=newMessage.split("-",2);
 			updateStart(spl[1]);
@@ -60,7 +67,6 @@ public class ReplicationRoutingServer extends RoutingServer{
 			else{
 				
 			}
-			return;
 		}
 
 		else if(newMessage.startsWith("NEWREPLICALOW-")){
@@ -82,47 +88,12 @@ public class ReplicationRoutingServer extends RoutingServer{
 		else if(newMessage.startsWith("ADDREPLICA-")){
 			server.action(newMessage);
 		}
-
-		else if(newMessage.startsWith("BULK-")){
-			String answer=server.action(newMessage);
-			if(!answer.equals("OK"))
-				depart("LeaveForced");
-		}
-
-		else if(newMessage.startsWith("ONELEFT-"));
-			//  TODO : One Died ?
-
-		else{
-			query(newMessage);
-		}
-	}
+		else
+			return false;
 		
-	protected void query(String newMessage){
-		String sendMessage;
-		if(!newMessage.startsWith("#")){
-		/* 
-		 * If this is the first hop
-		 * add my #ip:port# to take Answer
-		 */
-			sendMessage="#"+myIp+":"+myPort+"#"+newMessage;
-		}
-		else{
-			sendMessage=newMessage;
-			//	else toss final ip
-			newMessage=newMessage.split("#")[2];
-		}
-		String [] message=newMessage.split(",");
-		String key=message[0];
+		return true;
+
 		
-		boolean isMine=isMine(key);
-		if (isMine){
-			String answer=server.action(newMessage);
-		//	send back reply
-			sendMessage(sendMessage.split("#")[1], answer);
-		}
-		else{
-			outNext.println(sendMessage);
-		}
 	}
 	
 	private void updateReplicaStart(String replicaStart){
@@ -130,8 +101,8 @@ public class ReplicationRoutingServer extends RoutingServer{
 		this.amiCut=(compareHash(startReplica,myShaId)>=0);
 	}
 
-	private boolean isHere(String key){
-		if (amiFirst)
+	protected boolean isHere(String key){
+		if (amiCut)
 			return compareHash(startReplica,key)<0 || compareHash(key,end)<0 ;
 		return compareHash(startReplica,key)<0  && compareHash(key,end)<0 ;
 	}

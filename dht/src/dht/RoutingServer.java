@@ -6,7 +6,6 @@ import java.io.PrintWriter;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
@@ -15,12 +14,12 @@ import java.nio.channels.SocketChannel;
 import java.util.Iterator;
 import java.util.Set;
 
-import org.apache.commons.codec.digest.DigestUtils;
+//import org.apache.commons.codec.digest.DigestUtils;
 
 public class RoutingServer extends Thread{
 	protected String myIp,oneIp;
 	protected int myPort,onePort;
-	protected Server server;
+	protected Server server=null;
 	protected Console console;
 	
 	protected int myId;
@@ -41,7 +40,6 @@ public class RoutingServer extends Thread{
 		this.myPort=myPort;
 		this.oneIp=oneIp;
 		this.onePort=onePort;
-		this.server=new Server(false,"",""); 
 		this.console=new Console();
 	}
 
@@ -72,19 +70,28 @@ public class RoutingServer extends Thread{
 			//----take range
 			start=spl[1];
 			end=spl[2];
-			
-			connectWithNext(spl[3]);
-			
-			
 
+			connectWithNext(spl[3]);
+
+			takeAdditionalFromOne(spl);
+			
 		} catch (IOException e) {
 			e.printStackTrace();
 			System.out.println("One din`t respond! Exit");
 			System.exit(1);
 		}
+		
+		initServer();
 
+		
 		listen();
 	}
+
+	protected void initServer() {
+		this.server=new Server(false,start,end);
+	}
+
+	protected void takeAdditionalFromOne(String[] spl) {}
 
 	protected void listen(){
 		console.logEntry();
@@ -220,12 +227,31 @@ public class RoutingServer extends Thread{
 	   // sc.write( buffer );
 	    console.logExit();
 	    return true;
-	  }
+	}
 
 	protected void processMessage(String newMessage){
 		console.logEntry();
 		console.log("newMessage:" +newMessage);
-		if(newMessage.startsWith("Leave")){
+		if(isItaBasicMessage(newMessage))
+			return;			
+		else if(newMessage.startsWith("NEWLOW-")){
+			//New Range due to new Node in network
+			String[] spl=newMessage.split("-");
+			updateStart(spl[1]);
+			if(spl.length==3){
+				// this means range become smaller (new came) so let`s send data at prev (=new)
+				String reply=server.action("NewRange-"+start);
+				sendMessage(spl[2],reply);
+			}
+		}
+		
+		else{
+			query(newMessage);
+		}
+	}
+	
+	protected boolean isItaBasicMessage(String newMessage){
+		if(newMessage.startsWith("LEAVE")){
 			depart(newMessage);
 		}
 		
@@ -238,45 +264,32 @@ public class RoutingServer extends Thread{
 			//  NEWNEXT-ipNext:portNext
 			connectWithNext(newMessage.split("-")[1]);
 		}
-
-		else if(newMessage.startsWith("NEWLOW-")){
-			//New Range due to new Node in network
-			String[] spl=newMessage.split("-");
-			updateStart(spl[1]);
-			if(spl.length==3){
-				// this means range become smaller (new came) so let`s send data at prev (=new)
-				String reply=server.action("NewRange-"+start);
-				sendMessage(spl[2],reply);
-			}
-		}
-
 		else if(newMessage.startsWith("BULK-")){
 			String answer=server.action(newMessage);
 			if(!answer.equals("OK"))
 				depart("LeaveForced");
 		}
-
-		else if(newMessage.startsWith("ONELEFT-")){
-			//  TODO : One Died ?
-		}
-		else{
-			query(newMessage);
-		}
+		else
+				return false;
+		
+		//code reaches here if newMessage type was found.
+		//so stop searching and return
+		return true;
 	}
 	
 	protected void query(String newMessage){
 		String sendMessage;
-		if(!newMessage.startsWith("#")){
+		if(!newMessage.startsWith("@")){
 		/* 
 		 * If this is the first hop
 		 * add my #ip:port# to take Answer
 		 */
-			sendMessage="#"+myIp+":"+myPort+"#"+newMessage;
+			sendMessage="@"+myIp+":"+myPort+"@"+newMessage;
 		}
 		else{
 			sendMessage=newMessage;
 			//	else toss final ip
-			newMessage=newMessage.split("#")[2];
+			newMessage=newMessage.split("@")[2];
 		}
 		String [] message=newMessage.split(",");
 		String key=message[0];
@@ -285,7 +298,7 @@ public class RoutingServer extends Thread{
 		if (isMine){
 			String answer=server.action(newMessage);
 		//	send back reply
-			sendMessage(sendMessage.split("#")[1], answer);
+			sendMessage(sendMessage.split("@")[1], answer);
 		}
 		else{
 			outNext.println(sendMessage);
@@ -309,7 +322,6 @@ public class RoutingServer extends Thread{
 		socketNext = new Socket(next[0],new Integer(next[1]));
 		outNext = new PrintWriter(socketNext.getOutputStream(), true);
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
