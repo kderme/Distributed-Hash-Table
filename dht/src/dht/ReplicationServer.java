@@ -5,19 +5,13 @@ import java.util.Set;
 import java.util.SortedMap;
 
 public class ReplicationServer extends Server{
-	private int replicaNumber;
 	private String replicaLeastHash;
-	private String replicaMaxHash;
 	SortedMap<String,String> replicaData = null;
-	SortedMap<String,String> replicaWriteTime = null;
-	private int replicationMethod;
+	SortedMap<String,String> WriteTime = null;
 	public ReplicationServer(boolean master,String least,String max, int replicas, String replicalow, String replicahigh, int replicaMethod)
 	{
 		super(master,least,max);
-		replicaNumber=replicas;
 		replicaLeastHash=replicalow;
-		replicaMaxHash=replicahigh;
-		replicationMethod=replicaMethod;
 	}
 	
 	private boolean isReplicaMaster(String key)
@@ -46,15 +40,54 @@ public class ReplicationServer extends Server{
 		{
 			current_key=iter.next();
 			current_value=data.get(current_key);
+			//*********************************
+			current_value=current_value+"^"+WriteTime.get(current_key);
+			//*********************************
 			result=result+current_key+","+current_value;
 			data.remove(current_key,current_value);
+			replicaData.put(current_key,current_value);
 		}
 		while(iter.hasNext())
 		{
 			current_key=iter.next();
 			current_value=data.get(current_key);
+			//*********************************
+			current_value=current_value+"^"+WriteTime.get(current_key);
+			//*********************************
 			result=result+"_"+current_key+","+current_value;
 			data.remove(current_key,current_value);
+			replicaData.put(current_key,current_value);
+		}
+		return result;
+	}
+	
+	public String replicaToData(String low)
+	{
+		String result=low+"-";
+		String current_key,current_value;
+		Iterator<String> iter=replicaData.subMap(low,leastHash).keySet().iterator();
+		leastHash=low;
+		if(iter.hasNext())
+		{
+			current_key=iter.next();
+			current_value=replicaData.get(current_key);
+			//*********************************
+			current_value=current_value+"^"+WriteTime.get(current_key);
+			//*********************************
+			result=result+current_key+","+current_value;
+			replicaData.remove(current_key,current_value);
+			data.put(current_key,current_value);
+		}
+		while(iter.hasNext())
+		{
+			current_key=iter.next();
+			current_value=replicaData.get(current_key);
+			//*********************************
+			current_value=current_value+"^"+WriteTime.get(current_key);
+			//*********************************
+			result=result+"_"+current_key+","+current_value;
+			replicaData.remove(current_key,current_value);
+			data.put(current_key,current_value);
 		}
 		return result;
 	}
@@ -67,6 +100,11 @@ public class ReplicationServer extends Server{
 		for(i=0;i<insertions.length;i++)
 		{
 			current=insertions[i].split(",");
+			//*********************************
+			String current_value=current[1].split("^")[1];
+			current[1]=current[1].split("^")[0];
+			WriteTime.put(current[0],current_value);
+			//*********************************
 			data.put(current[0],current[1]);
 		}
 		return "OK";
@@ -83,28 +121,28 @@ public class ReplicationServer extends Server{
 			current_key=iter.next();
 			current_value=data.get(current_key);
 			result=result+current_key+","+current_value;
+			//*********************************
+			String current_time=WriteTime.get(current_key);
+			result=result+"^"+current_time;
+			//*********************************
 		}
 		while(iter.hasNext())
 		{
 			current_key=iter.next();
 			current_value=data.get(current_key);
 			result=result+"_"+current_key+","+current_value;
+			//*********************************
+			String current_time=WriteTime.get(current_key);
+			result=result+"^"+current_time;
+			//*********************************
 		}
-		data.clear();
 		return result;
 	}
 	
-	//kaleis thn action me ta ekshs Strings
-	//gia eisagwgh kombou NewData-key,value_key,value_key,value_.....
-	//apantaei OK
-	//gia eksagwgh kombou Leaving
-	//apantaei Data-key,value_key,value_key,value_.....
-	//gia allagh ranges NewRange-lowRange
-	//apantaei Data-key,value_key,value_key,value_.....
 	
 	private String removeReplicas(String lowReplica, String destination)
 	{
-		String result=destination+"-";
+		String result=replicaLeastHash+"-"+destination+"-";
 		String marginLow=replicaLeastHash;
 		String marginHigh=lowReplica;
 		replicaLeastHash=lowReplica;
@@ -114,6 +152,11 @@ public class ReplicationServer extends Server{
 			String key=iter.next();
 			String value=replicaData.get(key);
 			result=result+key+","+value;
+			//*********************************
+			String current_time=WriteTime.get(key);
+			result=result+"^"+current_time;
+			WriteTime.remove(key);
+			//*********************************
 			replicaData.remove(key);
 		}
 		while(iter.hasNext())
@@ -121,6 +164,11 @@ public class ReplicationServer extends Server{
 			String key=iter.next();
 			String value=replicaData.get(key);
 			result=result+"_"+key+","+value;
+			//*********************************
+			String current_time=WriteTime.get(key);
+			result=result+"^"+current_time;
+			WriteTime.remove(key);
+			//*********************************
 			replicaData.remove(key);
 		}
 		return result;
@@ -128,8 +176,7 @@ public class ReplicationServer extends Server{
 	
 	private String sendAllData(String replicaLow, String destination)
 	{
-		String result=destination+"-";
-		String marginLow=replicaLeastHash;
+		String result=replicaLow+"-"+destination+"-";
 		Iterator<String> iter=replicaData.keySet().iterator();
 		String key,value;
 		if(iter.hasNext())
@@ -137,14 +184,26 @@ public class ReplicationServer extends Server{
 			key=iter.next();
 			value=replicaData.get(key);
 			result=result+key+","+value;
-			replicaData.remove(key);
+			//*********************************
+			String current_time=WriteTime.get(key);
+			result=result+"^"+current_time;
+			//WriteTime.remove(key);
+			//*********************************
+
+			//replicaData.remove(key);
 		}
 		while(iter.hasNext())
 		{
 			key=iter.next();
 			value=replicaData.get(key);
 			result=result+"_"+key+","+value;
-			replicaData.remove(key);
+			//*********************************
+			String current_time=WriteTime.get(key);
+			result=result+"^"+current_time;
+			//WriteTime.remove(key);
+			//*********************************
+			
+			//replicaData.remove(key);
 		}
 		iter=data.keySet().iterator();
 		if(replicaData.isEmpty())
@@ -154,6 +213,11 @@ public class ReplicationServer extends Server{
 				key=iter.next();
 				value=data.get(key);
 				result=result+key+","+value;
+				//*********************************
+				String current_time=WriteTime.get(key);
+				result=result+"^"+current_time;
+				//*********************************
+				
 			}
 		}
 		while(iter.hasNext())
@@ -161,13 +225,82 @@ public class ReplicationServer extends Server{
 			key=iter.next();
 			value=data.get(key);
 			result=result+"_"+key+","+value;
+			//*********************************
+			String current_time=WriteTime.get(key);
+			result=result+"^"+current_time;
+			//*********************************
+			
 		}
 		return result;
 	}
 	
-	private String updateReplica(String dataString)
+	private String updateReplica(String low,String dataString)
 	{
 		String result="";
+		if(RoutingServer.compareHash(low,replicaLeastHash)<0) replicaLeastHash=low;
+		String[] dataPairs=dataString.split("_");
+		int i;
+		String key,value;
+		for (i=0; i<dataPairs.length;i++)
+		{
+			key=dataPairs[i].split(",")[0];
+			value=dataPairs[i].split(",")[1];
+			if (isReplicaMaster(key)){
+				//*********************************
+				String current_time=value.split("^")[1];
+				value=value.split("^")[0];
+				WriteTime.put(key,current_time);
+				//*********************************
+				data.put(key,value);
+			}
+			else {
+				//*********************************
+				String current_time=value.split("^")[1];
+				value=value.split("^")[0];
+				WriteTime.put(key,current_time);
+				//*********************************
+				replicaData.put(key,value);
+			}
+		}
+		return result;
+	}
+	private String addReplica (String low, String dataString)
+	{
+		replicaLeastHash=low;
+		updateReplica(low,dataString);
+		return "";
+	}
+	
+	private String sendReplica(String low, String high)
+	{
+		String result="";
+		String current_key,current_value;
+		Iterator<String> iter=replicaData.subMap(low,high).keySet().iterator();
+		replicaLeastHash=low;
+		if(iter.hasNext())
+		{
+			current_key=iter.next();
+			current_value=replicaData.get(current_key);
+			result=result+current_key+","+current_value;
+			//*********************************
+			String current_time=WriteTime.get(current_key);
+			result=result+"^"+current_time;
+			WriteTime.remove(current_key);
+			//*********************************
+			replicaData.remove(current_key,current_value);
+		}
+		while(iter.hasNext())
+		{
+			current_key=iter.next();
+			current_value=replicaData.get(current_key);
+			result=result+"_"+current_key+","+current_value;
+			//*********************************
+			String current_time=WriteTime.get(current_key);
+			result=result+"^"+current_time;
+			WriteTime.remove(current_key);
+			//*********************************
+			replicaData.remove(current_key,current_value);
+		}
 		return result;
 	}
 	
@@ -178,19 +311,48 @@ public class ReplicationServer extends Server{
 		if(split[1].equals("insert")) result="ANSWER-"+insert(split[0],split[2]);
 		else if (split[1].equals("query")) result="ANSWER-"+query(split[0]);
 		else if (split[1].equals("delete")) result="ANSWER-"+delete(split[0]);
-		else if (split[0].equals("NewRange")) result="BULK-"+changeRanges(split[1]);
+		else if (split[0].equals("NEWLOW")) result="BULK-"+changeRanges(split[1]);
+		else if (split[0].equals("NEWLOW2")) result="UPDATEREPLICA-"+replicaToData(split[1]);
 		else if (split[0].equals("BULK")) result=newData(split[1]);
 		else if (split[0].equals("NEWREPLICALOW")) result="UPDATEREPLICA-"+removeReplicas(split[1],split[2]);
-		else if (split[0].equals("Leaving")) result="BULK-"+sendData();
-		else if (split[0].equals("SENDALLDATA")) result="UPDATEREPLICA-"+sendAllData(split[1],split[2]);
-		else if (split[0].equals("UPDATEREPLICA")) result=updateReplica(split[2]);
+		else if (split[0].equals("LEAVING")) result="BULK-"+sendData();
+		else if (split[0].equals("SENDALLDATA")) result="ADDREPLICA-"+sendAllData(split[1],split[2]);
+		else if (split[0].equals("SENDREPLICA")) result="UPDATEREPLICA-"+split[1]+"-"+split[3]+"-"+sendReplica(split[1],split[2]);
+		else if (split[0].equals("SENDDATA")) result="ADDREPLICA-"+split[1]+"-"+split[2]+"-"+sendData();
+		else if (split[0].equals("ADDREPLICA")) result=addReplica(split[1],split[2]);
+		else if (split[0].equals("UPDATEREPLICA")) result=updateReplica(split[1],split[3]);
 		else result="Error";
 		return result;
 	}
 	
 	public String insert(String key, String value)
 	{
-		data.put(key,value);
+		//*********************************
+		String current_time=WriteTime.get(key);
+		int writing_time;
+		int time;
+		if(value.split("^").length>1){
+			writing_time=Integer.valueOf(value.split("^")[1]);
+			value=value.split("^")[0];
+		}
+		else if (current_time==null) writing_time=0;
+		else
+		{
+			writing_time=Integer.valueOf(current_time)+1;
+		}
+		if(current_time==null) time=0;
+		else time=Integer.valueOf(current_time);
+		if(time>writing_time) return "NotDone";
+		WriteTime.put(key,""+writing_time);
+		//*********************************
+		if(isReplicaMaster(key))
+		{
+			data.put(key,value);
+		}
+		else
+		{
+			replicaData.put(key,value);
+		}
 		return "Done";
 	}
 	
@@ -199,6 +361,19 @@ public class ReplicationServer extends Server{
 		if(data.containsKey(key))
 		{
 			String value=data.remove(key);
+			//**************************
+			String time=WriteTime.remove(key);
+			if (time!=null) value=value+"^"+time;
+			//**************************
+			return value;
+		}
+		else if(replicaData.containsKey(key))
+		{
+			String value=replicaData.remove(key);
+			//**************************
+			String time=WriteTime.remove(key);
+			if (time!=null) value=value+"^"+time;
+			//**************************
 			return value;
 		}
 		else return null;
@@ -218,12 +393,43 @@ public class ReplicationServer extends Server{
 			{
 				current_key=(String) iter.next();
 				current_value=data.get(current_key);
+				//**************************
+				String time=WriteTime.get(current_key);
+				if (time!=null) current_value=current_value+"^"+time;
+				//**************************
 				result=result+current_key+","+current_value;
 			}
 			while(iter.hasNext())
 			{
 				current_key=(String) iter.next();
 				current_value=data.get(current_key);
+				//**************************
+				String time=WriteTime.get(current_key);
+				if (time!=null) current_value=current_value+"^"+time;
+				//**************************
+				result=result+"\n"+current_key+","+current_value;
+			}
+			allKeys= replicaData.keySet();
+			if (allKeys.isEmpty()) return result;
+			iter=allKeys.iterator();
+			if(iter.hasNext() && result.equals(""))
+			{
+				current_key=(String) iter.next();
+				current_value=replicaData.get(current_key);
+				//**************************
+				String time=WriteTime.get(current_key);
+				if (time!=null) current_value=current_value+"^"+time;
+				//**************************
+				result=result+current_key+","+current_value;
+			}
+			while(iter.hasNext())
+			{
+				current_key=(String) iter.next();
+				current_value=replicaData.get(current_key);
+				//**************************
+				String time=WriteTime.get(current_key);
+				if (time!=null) current_value=current_value+"^"+time;
+				//**************************
 				result=result+"\n"+current_key+","+current_value;
 			}
 			return result;
@@ -233,6 +439,20 @@ public class ReplicationServer extends Server{
 			if(data.containsKey(key))
 			{
 				String current_value=data.get(key);
+				//**************************
+				String time=WriteTime.get(key);
+				if (time!=null) current_value=current_value+"^"+time;
+				//**************************
+				result=key+","+current_value;
+				return result;
+			}
+			else if(replicaData.containsKey(key))
+			{
+				String current_value=replicaData.get(key);
+				//**************************
+				String time=WriteTime.get(key);
+				if (time!=null) current_value=current_value+"^"+time;
+				//**************************
 				result=key+","+current_value;
 				return result;
 			}
