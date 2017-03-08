@@ -11,7 +11,6 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
-import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Set;
 
@@ -65,7 +64,7 @@ public class RoutingServer extends Thread{
 
 			//---take id
 			String mySid = spl[0];
-			myId = new Integer(mySid);
+			myId = Integer.parseInt(mySid);
 			myShaId = hash(mySid);
 
 			//----take range
@@ -210,50 +209,21 @@ public class RoutingServer extends Thread{
 	      }
 	    }
 
-  private boolean processInput( SocketChannel sc ) throws IOException {
+  protected boolean processInput( SocketChannel sc ) throws IOException {
 	    console.logEntry();
-	    ArrayList<String> ls=new ArrayList<String>();
-	    while(true){
-	    	//We assume messages that end with '\n' so we loop until newline
-	    	//At every loop we add input in list ls and then we concat
-		    	buffer.clear();
-		    	int read=sc.read( buffer );
-console.log("position="+buffer.position()+" limit="+buffer.limit());
-		    	buffer.flip();
-console.log("position="+buffer.position()+" limit="+buffer.limit());
-	    	if (!sc.isConnected() || read==-1) {
-			      return false;
-	    	}
-	    	if(read==0)
-	    		continue;
-	    	console.log("read="+read);
-	    	byte [] bytes=new byte [read];
-	    	buffer.get(bytes,0,read);
-	    	
-	    	String token=new String(bytes,java.nio.charset.StandardCharsets.UTF_8); //check encoding
-	    	
-	    	ls.add(token);
-	    	byte b=bytes[bytes.length-1];
-	    	Byte bb=new Byte(b);
-	  
-	    	if (bb.intValue()==10){
-	    		break;
-	    	}
-	    	else{
-	    		console.log("not newline at the end");
-	    	}
-	    }
-	    // If no data, close the connection
-	    
-	    console.log("position="+buffer.position()+" limit="+buffer.limit());
-	    
-	    StringBuilder sb= new StringBuilder();
+	    buffer.clear();
+	    sc.read( buffer );
+	    buffer.flip();
 
-	    for(String tempString:ls){
-	       sb.append(tempString);   
-	     }
+	    // If no data, close the connection
+	    if (buffer.limit()==0) {
+	      return false;
+	    }
+	    byte[] bytes=buffer.array();
 	    
-	    String newMessage=sb.toString();
+	    String newMessage=new String(bytes,java.nio.charset.StandardCharsets.UTF_8); //check encoding
+	    newMessage=newMessage.split(Character.valueOf((char)13).toString())[0];
+	    System.out.println("Going to process this message: "+newMessage);
 	    processMessage(newMessage);
 	    
 	   // sc.write( buffer );
@@ -262,6 +232,7 @@ console.log("position="+buffer.position()+" limit="+buffer.limit());
 	}
 
 	protected void processMessage(String newMessage){
+		System.out.println("!!!!!!!!!!!!!!!!!!!!!!!!!!");
 		console.logEntry();
 		console.log("newMessage:" +newMessage);
 		if(isItaBasicMessage(newMessage))
@@ -272,7 +243,7 @@ console.log("position="+buffer.position()+" limit="+buffer.limit());
 			updateStart(spl[1]);
 			if(spl.length==3){
 				// this means range become smaller (new came) so let`s send data at prev (=new)
-				String reply=server.action("NewRange-"+start);
+				String reply=server.action("NEWLOW-"+start);
 				sendMessage(spl[2],reply);
 			}
 		}
@@ -344,14 +315,23 @@ console.log("position="+buffer.position()+" limit="+buffer.limit());
 		try {
 		//---take routing info
 		String next []=iPort.split(":");
-							
+		System.out.println("Told to connect to: "+next[0]+":"+next[1]);				
 		//close existing connection (if exists)
 		if(outNext!=null)
 			outNext.close();
 		if(socketNext!=null)
 				socketNext.close();
 		//open connection with next
-		socketNext = new Socket(next[0],new Integer(next[1]));
+		//**********************************
+		if(iPort.equals(myIp+":"+myPort)) 
+		{
+			socketNext=null;
+			outNext=null;
+			return;
+		}
+		System.out.println("Port String has "+next[1].length()+" characters");
+		//***********************************
+		socketNext = new Socket(next[0],Integer.parseInt(next[1]));
 		outNext = new PrintWriter(socketNext.getOutputStream(), true);
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -393,6 +373,8 @@ console.log("position="+buffer.position()+" limit="+buffer.limit());
 	}
 
 	protected boolean sendMessage(String ip, int port, String message){
+		System.out.println("["+myIp+":"+myPort+"] Sending message: "+message);
+		System.out.println("to: "+ip+":"+port);
 		try{
 			Socket socket = new Socket(ip,port);
 			PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
@@ -414,7 +396,7 @@ console.log("position="+buffer.position()+" limit="+buffer.limit());
 	}
 		
 	public static String hash(String s){
-		return org.apache.commons.codec.digest.DigestUtils.sha1Hex("");
+		return org.apache.commons.codec.digest.DigestUtils.sha1Hex(s);
 	}
 	
 	public static String hash(int n){

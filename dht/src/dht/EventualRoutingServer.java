@@ -2,8 +2,8 @@ package dht;
 
 public class EventualRoutingServer extends ReplicationRoutingServer{
 	
-	public EventualRoutingServer(String myIp, int myPort, String oneIp, int onePort, int k, int consistency) {
-		super(myIp, myPort, oneIp, onePort, k, consistency);
+	public EventualRoutingServer(String myIp, int myPort, String oneIp, int onePort, int k) {
+		super(myIp, myPort, oneIp, onePort, k, 1);
 	}
 
 	

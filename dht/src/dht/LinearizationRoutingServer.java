@@ -2,14 +2,14 @@ package dht;
 
 public class LinearizationRoutingServer extends ReplicationRoutingServer{
 	
-	public LinearizationRoutingServer(String myIp, int myPort, String oneIp, int onePort, int k, int consistency) {
-		super(myIp, myPort, oneIp, onePort, k, consistency);
+	public LinearizationRoutingServer(String myIp, int myPort, String oneIp, int onePort, int k) {
+		super(myIp, myPort, oneIp, onePort, k, 0);
 	}
 
 	
 	protected void query(String newMessage){
 		String sendMessage;
-		
+		System.out.println("%%%%%%%%%%%%%%%%%");
 		int n=0;
 		if(newMessage.startsWith("##")){
 			//reading
@@ -28,7 +28,11 @@ public class LinearizationRoutingServer extends ReplicationRoutingServer{
 			else{
 				//else send answer to next
 				String answer=server.action(sendMessage.split("@",4)[2]);
-				outNext.println("##"+answer+"##"+sendMessage);
+				//***********************************
+				if(!answer.equals(prevAnswer)) outNext.println(sendMessage);
+				else
+				//***********************************	
+					outNext.println("##"+answer+"##"+sendMessage);
 			}
 		}
 		

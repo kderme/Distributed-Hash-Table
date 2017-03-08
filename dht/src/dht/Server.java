@@ -3,6 +3,7 @@ package dht;
 import java.util.Iterator;
 import java.util.Set;
 import java.util.SortedMap;
+import java.util.TreeMap;
 
 public class Server {
 	protected SortedMap<String,String> data = null;
@@ -11,6 +12,7 @@ public class Server {
 	protected String maxHash;
 	public Server(boolean master,String least,String max)
 	{
+		data=new TreeMap<String,String>();
 		isMaster=master;
 		leastHash=least;
 		maxHash=max;
@@ -86,17 +88,29 @@ public class Server {
 	//gia allagh ranges NewRange-lowRange
 	//apantaei Data-key,value_key,value_key,value_.....
 	
-	public String action(String execute)
+	protected String action(String execute)
 	{
 		String[] split=execute.split(",");
 		String result;
-		if(split[1].equals("insert")) result="Answer-"+insert(split[0],split[2]);
-		else if (split[1].equals("query")) result="Answer-"+query(split[0]);
-		else if (split[1].equals("delete")) result="Answer-"+delete(split[0]);
-		else if (split[0].equals("NewRange")) result="BULK-"+changeRanges(split[1]);
-		else if (split[0].equals("BULK")) result=newData(split[1]);
-		else if (split[0].equals("Leaving")) result="BULK-"+sendData();
-		else result="Error";
+		System.out.println("Action with: "+execute);
+		if(split.length>1){
+			if(split[1].equals("insert")) result="Answer-"+insert(split[0],split[2]);
+			else if (split[1].equals("query")) result="Answer-"+query(split[0]);
+			else if (split[1].equals("delete")) result="Answer-"+delete(split[0]);
+			else result="Error";
+		}
+		else
+		{
+			split=execute.split("-");
+			if (split[0].equals("NEWLOW")) result="BULK-"+changeRanges(split[1]);
+			else if (split[0].equals("BULK")) 
+			{
+				if(split.length>1) result=newData(split[1]);
+				else result= "OK";
+			}
+			else if (split[0].equals("LEAVE")) result="BULK-"+sendData();
+			else result="Error";
+		}
 		return result;
 	}
 	

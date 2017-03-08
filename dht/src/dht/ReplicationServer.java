@@ -3,6 +3,7 @@ package dht;
 import java.util.Iterator;
 import java.util.Set;
 import java.util.SortedMap;
+import java.util.TreeMap;
 
 public class ReplicationServer extends Server{
 	private String replicaLeastHash;
@@ -12,6 +13,8 @@ public class ReplicationServer extends Server{
 	{
 		super(master,least,max);
 		replicaLeastHash=replicalow;
+		replicaData=new TreeMap<String,String>();
+		WriteTime=new TreeMap<String,String>();
 	}
 	
 	private boolean isReplicaMaster(String key)
@@ -96,6 +99,7 @@ public class ReplicationServer extends Server{
 	{
 		String[] insertions=newData.split("_");
 		String[] current;
+		if(insertions[0].equals("")) return "OK";
 		int i;
 		for(i=0;i<insertions.length;i++)
 		{
@@ -239,6 +243,7 @@ public class ReplicationServer extends Server{
 		String result="";
 		if(RoutingServer.compareHash(low,replicaLeastHash)<0) replicaLeastHash=low;
 		String[] dataPairs=dataString.split("_");
+		if(dataPairs[0].equals("")) return result;
 		int i;
 		String key,value;
 		for (i=0; i<dataPairs.length;i++)
@@ -304,24 +309,40 @@ public class ReplicationServer extends Server{
 		return result;
 	}
 	
-	public String action(String execute)
+	protected String action(String execute)
 	{
 		String[] split=execute.split(",");
 		String result;
-		if(split[1].equals("insert")) result="ANSWER-"+insert(split[0],split[2]);
-		else if (split[1].equals("query")) result="ANSWER-"+query(split[0]);
-		else if (split[1].equals("delete")) result="ANSWER-"+delete(split[0]);
-		else if (split[0].equals("NEWLOW")) result="BULK-"+changeRanges(split[1]);
-		else if (split[0].equals("NEWLOW2")) result="UPDATEREPLICA-"+replicaToData(split[1]);
-		else if (split[0].equals("BULK")) result=newData(split[1]);
-		else if (split[0].equals("NEWREPLICALOW")) result="UPDATEREPLICA-"+removeReplicas(split[1],split[2]);
-		else if (split[0].equals("LEAVING")) result="BULK-"+sendData();
-		else if (split[0].equals("SENDALLDATA")) result="ADDREPLICA-"+sendAllData(split[1],split[2]);
-		else if (split[0].equals("SENDREPLICA")) result="UPDATEREPLICA-"+split[1]+"-"+split[3]+"-"+sendReplica(split[1],split[2]);
-		else if (split[0].equals("SENDDATA")) result="ADDREPLICA-"+split[1]+"-"+split[2]+"-"+sendData();
-		else if (split[0].equals("ADDREPLICA")) result=addReplica(split[1],split[2]);
-		else if (split[0].equals("UPDATEREPLICA")) result=updateReplica(split[1],split[3]);
-		else result="Error";
+		if(split.length>1){
+			if(split[1].equals("insert")) result="ANSWER-"+insert(split[0],split[2]);
+			else if (split[1].equals("query")) result="ANSWER-"+query(split[0]);
+			else if (split[1].equals("delete")) result="ANSWER-"+delete(split[0]);
+			else result="Error";
+		}
+		else
+		{
+			split=execute.split("-");
+			if (split[0].equals("NEWLOW")) result="BULK-"+changeRanges(split[1]);
+			else if (split[0].equals("NEWLOW2")) result="UPDATEREPLICA-"+replicaToData(split[1]);
+			else if (split[0].equals("BULK")) {
+				if(split.length==1) result=newData("");
+				else result=newData(split[1]);
+			}
+			else if (split[0].equals("NEWREPLICALOW")) result="UPDATEREPLICA-"+removeReplicas(split[1],split[2]);
+			else if (split[0].equals("LEAVING")) result="BULK-"+sendData();
+			else if (split[0].equals("SENDALLDATA")) result="ADDREPLICA-"+sendAllData(split[1],split[2]);
+			else if (split[0].equals("SENDREPLICA")) result="UPDATEREPLICA-"+split[1]+"-"+split[3]+"-"+sendReplica(split[1],split[2]);
+			else if (split[0].equals("SENDDATA")) result="ADDREPLICA-"+split[1]+"-"+split[2]+"-"+sendData();
+			else if (split[0].equals("ADDREPLICA")) {
+				if(split.length==3)	result=addReplica(split[1],"");
+				else result=addReplica(split[1],split[3]);
+			}
+			else if (split[0].equals("UPDATEREPLICA")) {
+				if(split.length==3) result=updateReplica(split[1],"");
+				else result=updateReplica(split[1],split[3]);
+			}
+			else result="Error";
+		}
 		return result;
 	}
 	
