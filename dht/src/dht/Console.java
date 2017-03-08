@@ -22,15 +22,17 @@ public class Console {
 	}
 	
 	public void logEntry(){
-        log("entry");
+		StackTraceElement caller = new Throwable().getStackTrace()[1];
+		out.println("["+caller.getMethodName()+"]    "+"entry");
 	}
 	
 	public void logExit(){
-        log("exit");
+		StackTraceElement caller = new Throwable().getStackTrace()[1];
+		out.println("["+caller.getMethodName()+"]    "+"exit");
 	}
 	
 	public void log(Object s){
 		StackTraceElement caller = new Throwable().getStackTrace()[1];
-		out.println("["+caller.getMethodName()+"]    "+"s");
+		out.println("["+caller.getMethodName()+"]    "+s);
 	}
 }

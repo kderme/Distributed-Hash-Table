@@ -11,6 +11,7 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Set;
 
@@ -211,17 +212,48 @@ public class RoutingServer extends Thread{
 
   private boolean processInput( SocketChannel sc ) throws IOException {
 	    console.logEntry();
-	    buffer.clear();
-	    sc.read( buffer );
-	    buffer.flip();
-
-	    // If no data, close the connection
-	    if (buffer.limit()==0) {
-	      return false;
+	    ArrayList<String> ls=new ArrayList<String>();
+	    while(true){
+	    	//We assume messages that end with '\n' so we loop until newline
+	    	//At every loop we add input in list ls and then we concat
+		    	buffer.clear();
+		    	int read=sc.read( buffer );
+console.log("position="+buffer.position()+" limit="+buffer.limit());
+		    	buffer.flip();
+console.log("position="+buffer.position()+" limit="+buffer.limit());
+	    	if (!sc.isConnected() || read==-1) {
+			      return false;
+	    	}
+	    	if(read==0)
+	    		continue;
+	    	console.log("read="+read);
+	    	byte [] bytes=new byte [read];
+	    	buffer.get(bytes,0,read);
+	    	
+	    	String token=new String(bytes,java.nio.charset.StandardCharsets.UTF_8); //check encoding
+	    	
+	    	ls.add(token);
+	    	byte b=bytes[bytes.length-1];
+	    	Byte bb=new Byte(b);
+	  
+	    	if (bb.intValue()==10){
+	    		break;
+	    	}
+	    	else{
+	    		console.log("not newline at the end");
+	    	}
 	    }
-	    byte[] bytes=buffer.array();
+	    // If no data, close the connection
 	    
-	    String newMessage=new String(bytes,java.nio.charset.StandardCharsets.UTF_8); //check encoding
+	    console.log("position="+buffer.position()+" limit="+buffer.limit());
+	    
+	    StringBuilder sb= new StringBuilder();
+
+	    for(String tempString:ls){
+	       sb.append(tempString);   
+	     }
+	    
+	    String newMessage=sb.toString();
 	    processMessage(newMessage);
 	    
 	   // sc.write( buffer );
