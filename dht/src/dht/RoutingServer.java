@@ -12,6 +12,7 @@ import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
+import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.Set;
 
@@ -35,6 +36,11 @@ public class RoutingServer extends Thread{
 	protected RoutingServer previous,next;
 	protected String start,end;
 	protected boolean amiFirst=false;
+	
+	//	fields for client
+	protected Hashtable<String,SocketChannel> ht=new Hashtable<String,SocketChannel>();
+	protected SocketChannel currentSC; //find iport of qeury here, not to change arguments of functions
+	protected long socketId=0L;
 
 	public RoutingServer(String myIp,int myPort,String oneIp,int onePort){
 		this.myIp=myIp;
@@ -171,6 +177,7 @@ public class RoutingServer extends Thread{
 	                // It's incoming data on a connection, so
 	                // process it
 	                sc = (SocketChannel)key.channel();
+	                currentSC=sc;
 	                boolean ok = processInput( sc );
 
 	                // If the connection is dead, then remove it
@@ -268,8 +275,44 @@ public class RoutingServer extends Thread{
 		console.logEntry();
 		console.log("newMessage:" +newMessage);
 		if(isItaBasicMessage(newMessage))
-			return;			
-		else if(newMessage.startsWith("NEWLOW-")){
+			;
+		else if (isItAnotherMessage(newMessage))
+			;
+		else
+			query(newMessage);
+	}
+	
+	protected boolean isItaBasicMessage(String newMessage){
+		if(newMessage.startsWith("LEAVE")){
+			depart(newMessage);
+		}
+		
+		else if (newMessage.startsWith("ANSWER-")){
+			//	Answer<answer>
+			System.out.println(newMessage.split("-")[1]);
+			String a =newMessage.split("@",3)[1];
+			
+		}
+
+		else if(newMessage.startsWith("NEWNEXT-")){
+			//  NEWNEXT-ipNext:portNext
+			connectWithNext(newMessage.split("-")[1]);
+		}
+		else if(newMessage.startsWith("BULK-")){
+			String answer=server.action(newMessage);
+			if(!answer.equals("OK"))
+				depart("LeaveForced");
+		}
+		else
+				return false;
+		
+		//code reaches here if newMessage type was found.
+		//so stop searching and return
+		return true;
+	}
+	
+	protected boolean isItAnotherMessage(String newMessage){
+		if(newMessage.startsWith("NEWLOW-")){
 			//New Range due to new Node in network
 			String[] spl=newMessage.split("-");
 			updateStart(spl[1]);
@@ -294,36 +337,9 @@ public class RoutingServer extends Thread{
 				sendMessage(spl[2],reply);
 			}
 		}
-		
-		else{
-			query(newMessage);
-		}
-	}
-	
-	protected boolean isItaBasicMessage(String newMessage){
-		if(newMessage.startsWith("LEAVE")){
-			depart(newMessage);
-		}
-		
-		else if (newMessage.startsWith("ANSWER-")){
-			//	Answer<answer>
-			System.out.println(newMessage.split("-")[1]);
-		}
-
-		else if(newMessage.startsWith("NEWNEXT-")){
-			//  NEWNEXT-ipNext:portNext
-			connectWithNext(newMessage.split("-")[1]);
-		}
-		else if(newMessage.startsWith("BULK-")){
-			String answer=server.action(newMessage);
-			if(!answer.equals("OK"))
-				depart("LeaveForced");
-		}
 		else
-				return false;
+			return false;
 		
-		//code reaches here if newMessage type was found.
-		//so stop searching and return
 		return true;
 	}
 	
@@ -332,14 +348,16 @@ public class RoutingServer extends Thread{
 		if(!newMessage.startsWith("@")){
 		/* 
 		 * If this is the first hop
-		 * add my #ip:port# to take Answer
+		 * add my #ip:port/socketId# to take Answer
 		 */
 			String[] parts=newMessage.split(",");
 			if(!parts[0].equals("*")) parts[0]=hash(parts[0]);
 			int i;
 			newMessage=parts[0];
 			for (i=1;i<parts.length;i++) newMessage=newMessage+","+parts[i];
-			sendMessage="@"+myIp+":"+myPort+"@"+newMessage;
+			sendMessage="@"+myIp+":"+myPort+"/"+socketId+"@"+newMessage;
+			ht.put(socketId+" ",currentSC);
+			socketId++;
 		}
 		else{
 			sendMessage=newMessage;
@@ -353,7 +371,8 @@ public class RoutingServer extends Thread{
 		if (isMine){
 			String answer=server.action(newMessage);
 		//	send back reply
-			sendMessage(sendMessage.split("@")[1], answer);
+			String [] sendBack=sendMessage.split("@")[1].split("/",2);
+			sendMessage(sendBack[0], "ANSWER-"+sendBack[1]+"-"+answer);
 		}
 		else{
 			outNext.println(sendMessage);
