@@ -334,6 +334,11 @@ public class RoutingServer extends Thread{
 		 * If this is the first hop
 		 * add my #ip:port# to take Answer
 		 */
+			String[] parts=newMessage.split(",");
+			if(!parts[0].equals("*")) parts[0]=hash(parts[0]);
+			int i;
+			newMessage=parts[0];
+			for (i=1;i<parts.length;i++) newMessage=newMessage+","+parts[i];
 			sendMessage="@"+myIp+":"+myPort+"@"+newMessage;
 		}
 		else{
@@ -405,9 +410,10 @@ public class RoutingServer extends Thread{
 	}
 
 	protected boolean isMine(String key) {
-		if (amiFirst)
-			return compareHash(start,key)<0 || compareHash(key,end)<0 ;
-		return compareHash(start,key)<0  && compareHash(key,end)<0 ;
+		if(key.equals("*")) return true;
+		if (compareHash(start,end)>=0)
+			return compareHash(start,key)>0 || compareHash(key,end)>=0 ;
+		return compareHash(start,key)<0  && compareHash(key,end)<=0 ;
 	}
 	
 	public static int compareHash(String h1,String h2){

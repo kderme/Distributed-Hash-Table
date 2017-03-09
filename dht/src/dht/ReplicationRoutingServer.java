@@ -108,9 +108,10 @@ public class ReplicationRoutingServer extends RoutingServer{
 	}
 
 	protected boolean isHere(String key){
-		if (amiCut)
-			return compareHash(startReplica,key)<0 || compareHash(key,end)<0 ;
-		return compareHash(startReplica,key)<0  && compareHash(key,end)<0 ;
+		if(key.equals("*")) return true;
+		if (compareHash(start,end)>=0)
+			return compareHash(startReplica,key)>0 || compareHash(key,end)>=0 ;
+		return compareHash(startReplica,key)<0  && compareHash(key,end)<=0 ;
 	}
 
 	protected boolean sendMessage(String ip, int port, String message){
@@ -205,7 +206,14 @@ public class ReplicationRoutingServer extends RoutingServer{
 				newMessage=newMessage.split("@",3)[2];
 			}
 			else
+			{
 				iport=myIp+":"+myPort;						
+				String[] parts=newMessage.split(",");
+				if(!parts[0].equals("*")) parts[0]=hash(parts[0]);
+				int i;
+				newMessage=parts[0];
+				for (i=1;i<parts.length;i++) newMessage=newMessage+","+parts[i];
+			}
 			
 			sendMessage="@"+iport+"@"+newMessage;
 			String [] message=newMessage.split(",");
@@ -289,7 +297,14 @@ public class ReplicationRoutingServer extends RoutingServer{
 				newMessage=newMessage.split("@",3)[2];
 			}
 			else
+			{
 				iport=myIp+":"+myPort;						
+				String[] parts=newMessage.split(",");
+				parts[0]=hash(parts[0]);
+				int i;
+				newMessage=parts[0];
+				for (i=1;i<parts.length;i++) newMessage=newMessage+"-"+parts[i];
+			}
 			
 			sendMessage="@"+iport+"@"+newMessage;
 			String [] message=newMessage.split(",");

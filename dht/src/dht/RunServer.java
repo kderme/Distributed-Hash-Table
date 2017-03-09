@@ -5,7 +5,7 @@ import java.util.Random;
 public class RunServer {
 
 	public static void main(String[] args) {
-		int replicationNumber=2;
+		int replicationNumber=1;
 		Random rand=new Random();
 		RoutingServer rs;
 		if(replicationNumber==1)rs= new RoutingServer("127.0.0.1",4000+rand.nextInt(1500),"127.0.0.1",4000);

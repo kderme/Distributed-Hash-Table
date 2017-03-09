@@ -133,9 +133,9 @@ public class Server {
 		String result;
 		System.out.println("Action with: "+execute);
 		if(split.length>1){
-			if(split[1].equals("insert")) result="Answer-"+insert(split[0],split[2]);
-			else if (split[1].equals("query")) result="Answer-"+query(split[0]);
-			else if (split[1].equals("delete")) result="Answer-"+delete(split[0]);
+			if(split[1].equals("insert")) result="ANSWER-"+insert(split[0],split[2]);
+			else if (split[1].equals("query")) result="ANSWER-"+query(split[0]);
+			else if (split[1].equals("delete")) result="ANSWER-"+delete(split[0]);
 			else result="Error";
 		}
 		else
