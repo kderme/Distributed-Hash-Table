@@ -39,8 +39,11 @@ public class RoutingServer extends Thread{
 	
 	//	fields for client
 	protected Hashtable<String,SocketChannel> ht=new Hashtable<String,SocketChannel>();
-	protected SocketChannel currentSC; //find iport of qeury here, not to change arguments of functions
-	protected long socketId=0L;
+	protected SocketChannel currentSC; //find sc here, not to change arguments of functions
+	protected long currentClid=0L;
+	
+	protected Hashtable<String,ArrayList<String>> data=new Hashtable<String,ArrayList<String>>();
+	protected int numberOfNodes;
 
 	public RoutingServer(String myIp,int myPort,String oneIp,int onePort){
 		this.myIp=myIp;
@@ -72,6 +75,8 @@ public class RoutingServer extends Thread{
 			//---take id
 			String mySid = spl[0];
 			myId = Integer.parseInt(mySid);
+			//TODO we keep in track number of nodes. Id is not the best way
+			this.numberOfNodes=myId;
 			myShaId = hash(mySid);
 
 			//----take range
@@ -287,12 +292,15 @@ public class RoutingServer extends Thread{
 			depart(newMessage);
 		}
 		
-		else if (newMessage.startsWith("ANSWER-")){
+		else if (newMessage.startsWith("ANSWER")){
 			//	Answer<answer>
 			String [] spl=newMessage.split("-",3);
-			String socketId =spl[1];
-			SocketChannel sc=ht.get(socketId);
-			sendClient(sc,spl[2]);
+			String currentClid =spl[1];
+			SocketChannel sc=ht.get(currentClid);
+			if (newMessage.startsWith("ANSWER*"))
+				answerStar(currentClid,spl[2],sc);
+			else
+				sendClient(sc,spl[2]);
 		}
 
 		else if(newMessage.startsWith("NEWNEXT-")){
@@ -312,6 +320,23 @@ public class RoutingServer extends Thread{
 		return true;
 	}
 	
+	private void answerStar(String ClientId, String message, SocketChannel sc) {
+		data.get(ClientId).add(message);
+		if(data.get(ClientId).size()==this.numberOfNodes){
+			//if all nodes (even me) have replied, append all replies and send to client
+			StringBuilder sb= new StringBuilder();
+
+		    for(String tempString:data.get(currentClid)){
+		       sb.append(tempString);   
+		     }
+		    
+		    String reply=sb.toString();
+			sendClient(sc,reply);
+		}
+		// TODO Auto-generated method stub
+		
+	}
+
 	private void sendClient(SocketChannel sc, String string) {
 		PrintWriter out=null;
 		try {
@@ -331,7 +356,9 @@ public class RoutingServer extends Thread{
 				// this means range become smaller (new came) so let`s send data at prev (=new)
 				String reply=server.action("NEWLOW-"+start);
 				sendMessage(spl[2],reply);
+				this.numberOfNodes++;
 			}
+			else this.numberOfNodes--;
 		}
 		else if(newMessage.startsWith("NEWDATA-")){
 			//New Range due to new Node in network
@@ -359,16 +386,20 @@ public class RoutingServer extends Thread{
 		if(!newMessage.startsWith("@")){
 		/* 
 		 * If this is the first hop
-		 * add my #ip:port/socketId# to take Answer
+		 * add my #ip:port/currentClid# to take Answer
 		 */
-			String[] parts=newMessage.split(",");
+			String[] parts=newMessage.split(",",2);
 			if(!parts[0].equals("*")) parts[0]=hash(parts[0]);
 			int i;
 			newMessage=parts[0];
 			for (i=1;i<parts.length;i++) newMessage=newMessage+","+parts[i];
-			sendMessage="@"+myIp+":"+myPort+"/"+socketId+"@"+newMessage;
-			ht.put(socketId+" ",currentSC);
-			socketId++;
+			sendMessage="@"+myIp+":"+myPort+"/"+currentClid+"@"+newMessage;
+			ht.put(currentClid+" ",currentSC);
+			
+			if(newMessage.equals("*"))
+				data.put(currentClid+" ",new ArrayList<String>());
+
+			currentClid++;
 		}
 		else{
 			sendMessage=newMessage;
@@ -383,7 +414,10 @@ public class RoutingServer extends Thread{
 			String answer=server.action(newMessage);
 		//	send back reply
 			String [] sendBack=sendMessage.split("@")[1].split("/",2);
-			sendMessage(sendBack[0], "ANSWER-"+sendBack[1]+"-"+answer);
+			String token="ANSWER";
+			if (key.equals("*"))
+				token+="*";
+			sendMessage(sendBack[0], token+"-"+sendBack[1]+"-"+answer);
 		}
 		else{
 			outNext.println(sendMessage);
