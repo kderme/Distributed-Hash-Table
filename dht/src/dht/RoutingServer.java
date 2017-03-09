@@ -254,6 +254,7 @@ public class RoutingServer extends Thread{
 		     }
 		    
 		    String newMessage=sb.toString();
+		    newMessage=newMessage.split(Character.valueOf((char)13).toString())[0];
 		    processMessage(newMessage);
 		    
 		   // sc.write( buffer );
@@ -275,6 +276,21 @@ public class RoutingServer extends Thread{
 			if(spl.length==3){
 				// this means range become smaller (new came) so let`s send data at prev (=new)
 				String reply=server.action("NEWLOW-"+start);
+				sendMessage(spl[2],reply);
+			}
+		}
+		else if(newMessage.startsWith("NEWDATA-")){
+			//New Range due to new Node in network
+			String[] spl=newMessage.split("-");
+			updateStart(spl[1]);
+			String reply=server.action(newMessage);
+		}
+		else if(newMessage.startsWith("NEWLOW2-")){
+			//New Range due to new Node in network
+			String[] spl=newMessage.split("-");
+			if(spl.length==3){
+				// this means range become smaller (new came) so let`s send data at prev (=new)
+				String reply=server.action("NEWLOW2-"+spl[1]);
 				sendMessage(spl[2],reply);
 			}
 		}

@@ -133,17 +133,18 @@ public class ReplicationPrimaryRoutingServer extends ReplicationRoutingServer {
 		int numbefore, numafter=0;
 		if(beforeSet.size()<replicationNumber) numafter=replicationNumber-beforeSet.size();
 		numbefore=replicationNumber-numafter;
+		System.out.println(numbefore+"]!!!!!!!!!["+numafter);
 		if(this.replicationNumber==replicationNumber)
 		{
 			if(numafter>0)
 			{
 				int ignore=afterSet.size()-numafter;
-				while(ignore-->0) cyclebefore.next();
+				while(ignore-->0) lowvalue=cyclebefore.next();
+				numafter--;
 			}
 			while(numafter>0)
 			{
 				String replicalow=cyclebefore.next();
-				if(lowvalue.equals(newhash)) lowvalue=replicalow;
 				String nexthash;
 				if(after.hasNext()) nexthash=after.next();
 				else nexthash=cycleafter.next();
@@ -154,13 +155,18 @@ public class ReplicationPrimaryRoutingServer extends ReplicationRoutingServer {
 			}
 			if(numbefore>0)
 			{
-				int ignore=beforeSet.size()-numbefore;
-				while(ignore-->0) before.next();
+				int ignore=beforeSet.size()-1-numbefore;
+				while(ignore-->0){
+					if(lowvalue.equals(newhash)) {
+						lowvalue=before.next();
+						numbefore--;
+					}
+					else before.next();
+				}
 			}
 			while(numbefore>0)
 			{
 				String replicalow=before.next();
-				if(lowvalue.equals(newhash)) lowvalue=replicalow;
 				String nexthash;
 				if(after.hasNext()) nexthash=after.next();
 				else nexthash=cycleafter.next();
@@ -213,101 +219,92 @@ public class ReplicationPrimaryRoutingServer extends ReplicationRoutingServer {
 		console.logExit();
 	}
 	
-	private void nextReplica(String leavingkey, String leavingAddress)
+	private String nextReplica(String leavingkey)
 	{
 		console.logEntry();
+		String result="";
 		int replicationNumber=this.replicationNumber;
-		if(replicationNumber>networkIds.size()) replicationNumber=networkIds.size();
-		if(networkIds.size()>=(replicationNumber+1))
+		if(replicationNumber<networkIds.size()) return "0";
+		Set<String> beforeSet=networkIds.headMap(leavingkey).keySet();
+		Set<String> afterSet=networkIds.tailMap(leavingkey).keySet();
+		Iterator<String> before=beforeSet.iterator();
+		Iterator<String> after=afterSet.iterator();
+		String key;
+		if(afterSet.size()<(replicationNumber))
 		{
-			Set<String> beforeSet=networkIds.headMap(leavingkey).keySet();
-			Set<String> afterSet=networkIds.tailMap(leavingkey).keySet();
-			Iterator<String> before=beforeSet.iterator();
-			Iterator<String> after=afterSet.iterator();
-			String key;
-			if(afterSet.size()<(replicationNumber+1))
-			{
-				int ignore=(replicationNumber+1)-afterSet.size();
-				while(ignore-->0) before.next();
-				key=before.next();
-			}
-			else
-			{
-				int ignore=(replicationNumber+1);
-				while(ignore-->0) after.next();
-				key=after.next();
-			}
-			String dest=networkIds.get(key);
-			String newhash;
-			if(afterSet.isEmpty()) newhash=networkIds.headMap(leavingkey).firstKey();
-			else newhash=networkIds.tailMap(leavingkey).firstKey();
-			String destination=networkIds.get(newhash);
-			String[] network=destination.split(":");
-			sendMessage(network[0],network[1],"SENDDATA-"+newhash+"-"+dest,destination+" does not answer");
+			int ignore=(replicationNumber-1)-afterSet.size();
+			while(ignore-->0) before.next();
+			key=before.next();
 		}
+		else
+		{
+			int ignore=(replicationNumber-1);
+			while(ignore-->0) after.next();
+			key=after.next();
+		}
+		result=networkIds.get(key);
 		console.logExit();
+		return result;
 	}
 	
 	private void distributeReplicas(String key)
 	{
 		console.logEntry();
-		int replicationNumber=this.replicationNumber;
-		if(replicationNumber>networkIds.size())	replicationNumber=networkIds.size();
-		if(this.replicationNumber==replicationNumber)
+		if(replicationNumber>networkIds.size())	{
+			console.logExit();
+			return;
+		}
+		Set<String> beforeSet=networkIds.headMap(key).keySet();
+		Set<String> afterSet=networkIds.tailMap(key).keySet();
+		Iterator<String> before=beforeSet.iterator(),cycleafter=beforeSet.iterator();
+		Iterator<String> after=afterSet.iterator(),cyclebefore=afterSet.iterator();
+		int numbefore, numafter=0;
+		if(beforeSet.size()<replicationNumber) numafter=replicationNumber-1-beforeSet.size();
+		numbefore=replicationNumber-1-numafter;
+		String destination=networkIds.get(key);
+		String[] network=destination.split(":");
+		String replicalow="",replicahigh="";
+		if(numafter>0)
 		{
-			Set<String> beforeSet=networkIds.headMap(key).keySet();
-			Set<String> afterSet=networkIds.tailMap(key).keySet();
-			Iterator<String> before=beforeSet.iterator(),cycleafter=beforeSet.iterator();
-			Iterator<String> after=afterSet.iterator(),cyclebefore=afterSet.iterator();
-			int numbefore, numafter=0;
-			if(beforeSet.size()<replicationNumber) numafter=replicationNumber-beforeSet.size();
-			numbefore=replicationNumber-numafter;
-			String destination=networkIds.get(key);
-			String[] network=destination.split(":");
-			String replicalow="",replicahigh="";
-			if(numafter>0)
-			{
-				int ignore=afterSet.size()+1-numafter;
-				while(ignore-->0) 
-				{
-					replicalow=replicahigh;
-					replicahigh=cyclebefore.next();
-				}
-			}
-			while(numafter>0)
+			int ignore=afterSet.size()-numafter;
+			while(ignore-->0) 
 			{
 				replicalow=replicahigh;
 				replicahigh=cyclebefore.next();
-				String nexthash;
-				if(after.hasNext()) nexthash=after.next();
-				else nexthash=cycleafter.next();
-				sendMessage(network[0],network[1],"SENDREPLICA-"+replicalow+"-"+replicahigh+"-"+networkIds.get(nexthash),destination+" does not answer");
-				numafter--;
 			}
-			if(numbefore>0)
-			{
-				int ignore;
-				if(replicalow=="") ignore=beforeSet.size()+1-numbefore;
-				else ignore=beforeSet.size()-numbefore;
-				while(ignore-->0) 
-				{
-					replicalow=replicahigh;
-					replicahigh=before.next();
-				}
-			}
-			while(numbefore>0)
+		}
+		while(numafter>0)
+		{
+			replicalow=replicahigh;
+			replicahigh=cyclebefore.next();
+			String nexthash;
+			if(after.hasNext()) nexthash=after.next();
+			else nexthash=cycleafter.next();
+			sendMessage(network[0],network[1],"SENDREPLICA-"+replicalow+"-"+replicahigh+"-"+networkIds.get(nexthash),destination+" does not answer");
+			numafter--;
+		}
+		if(numbefore>0)
+		{
+			int ignore;
+			ignore=beforeSet.size()-numbefore;
+			while(ignore-->0) 
 			{
 				replicalow=replicahigh;
 				replicahigh=before.next();
-				String nexthash;
-				if(after.hasNext()) nexthash=after.next();
-				else nexthash=cycleafter.next();
-				sendMessage(network[0],network[1],"SENDREPLICA-"+replicalow+"-"+replicahigh+"-"+networkIds.get(nexthash),destination+" does not answer");
-				numbefore--;
 			}
 		}
-		//next should send his new data as replica to farthest node if he has not already done so
+		while(numbefore>0)
+		{
+			replicalow=replicahigh;
+			replicahigh=before.next();
+			String nexthash;
+			if(after.hasNext()) nexthash=after.next();
+			else nexthash=cycleafter.next();
+			sendMessage(network[0],network[1],"SENDREPLICA-"+replicalow+"-"+replicahigh+"-"+networkIds.get(nexthash),destination+" does not answer");
+			numbefore--;
+		}
 		console.logExit();
+		return;
 	}
 	
 	protected String divideRanges(String prev_key, String new_key, String next_key)
@@ -332,7 +329,7 @@ public class ReplicationPrimaryRoutingServer extends ReplicationRoutingServer {
 		return result;
 	}
 	
-	protected void mergeRanges(String prev_key, String next_key)
+	protected void mergeRanges(String prev_key, String leaving_key,String next_key)
 	{
 		console.logEntry();
 		String current_value;
@@ -340,11 +337,12 @@ public class ReplicationPrimaryRoutingServer extends ReplicationRoutingServer {
 		String[] network=current_value.split(":");
 		String next_low;
 		next_low=prev_key;
-		if(next_key.equals(myShaId)) start=next_low;
-		else
-		{
-			sendMessage(network[0],network[1],"NEWLOW2-"+next_low,"Id "+next_key+" didn't respond! Exit");
-		}
+		String dest=nextReplica(leaving_key);
+		//if(next_key.equals(myShaId)) start=next_low;
+		//else
+		//{
+			sendMessage(network[0],network[1],"NEWLOW2-"+next_low+"-"+dest,"Id "+next_key+" didn't respond! Exit");
+		//}
 		console.logExit();
 	}
 	
@@ -390,8 +388,7 @@ public class ReplicationPrimaryRoutingServer extends ReplicationRoutingServer {
 		else next_key=networkIds.tailMap(message).firstKey();
 		String curr_value=networkIds.get(next_key);
 		updateNext(prev_value,curr_value);
-		mergeRanges(prev_key,next_key);
-		nextReplica(message,networkIds.get(message));
+		mergeRanges(prev_key,message,next_key);
 		console.logExit();
 		return "Removed";
 	}

@@ -55,7 +55,7 @@ public class ReplicationRoutingServer extends RoutingServer{
 	}
 	
 	protected boolean isItAnotherMessage(String newMessage){
-		if(newMessage.startsWith("NEWLOW")){
+		if(newMessage.startsWith("NEWLOW-")){
 			//New Range due to new Node in network
 			String[] spl=newMessage.split("-");
 			updateStart(spl[1]);
@@ -67,6 +67,12 @@ public class ReplicationRoutingServer extends RoutingServer{
 			else{
 				
 			}
+		}
+		else if(newMessage.startsWith("NEWLOW2-"))
+		{
+			String[] spl=newMessage.split("-");
+			String reply=server.action(newMessage);
+			if(!spl[2].equals("0"))sendMessage(spl[2],reply);
 		}
 
 		else if(newMessage.startsWith("NEWREPLICALOW-")){
@@ -80,7 +86,7 @@ public class ReplicationRoutingServer extends RoutingServer{
 				server.action(newMessage+"-0");
 		}
 		
-		else if(newMessage.startsWith("SENDDATA-") || newMessage.startsWith("SENDALLDATA-")){
+		else if(newMessage.startsWith("SENDDATA-") || newMessage.startsWith("SENDALLDATA-") || newMessage.startsWith("SENDREPLICA-")){
 			String reply = server.action(newMessage);
 			sendMessage(reply.split("-")[2],reply);
 		}

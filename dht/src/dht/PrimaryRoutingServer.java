@@ -135,19 +135,19 @@ public class PrimaryRoutingServer extends RoutingServer {
 		return result;
 	}
 	
-	protected void mergeRanges(String prev_key, String next_key)
+	protected void mergeRanges(String prev_key,String leaving_location, String next_key)
 	{
 		console.logEntry();
 		String current_value;
 		current_value=networkIds.get(next_key);
-		String[] network=current_value.split(":");
+		String[] network=leaving_location.split(":");
 		String next_low;
 		next_low=prev_key;
-		if(next_key.equals(myShaId)) start=next_low;
-		else
-		{
-			sendMessage(network[0],network[1],"NEWLOW2-"+next_low,"Id "+next_key+" didn't respond! Exit");
-		}
+		//if(next_key.equals(myShaId)) start=next_low;
+		//else
+		//{
+			sendMessage(network[0],network[1],"NEWLOW2-"+next_low+"-"+current_value,"Id "+next_key+" didn't respond! Exit");
+		//}
 		console.logExit();
 	}
 	
@@ -181,6 +181,7 @@ public class PrimaryRoutingServer extends RoutingServer {
 	{
 		console.logEntry();
 		if(!networkIds.containsKey(message)) return "Nonexistent";
+		String remove_location=networkIds.get(message);
 		networkIds.remove(message);
 		String prev_key;
 		if (networkIds.headMap(message).isEmpty()) prev_key=networkIds.lastKey();
@@ -191,7 +192,7 @@ public class PrimaryRoutingServer extends RoutingServer {
 		else next_key=networkIds.tailMap(message).firstKey();
 		String curr_value=networkIds.get(next_key);
 		updateNext(prev_value,curr_value);
-		mergeRanges(prev_key,next_key);
+		mergeRanges(prev_key,remove_location,next_key);
 		console.logExit();
 		return "Removed";
 	}
