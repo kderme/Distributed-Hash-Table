@@ -289,9 +289,10 @@ public class RoutingServer extends Thread{
 		
 		else if (newMessage.startsWith("ANSWER-")){
 			//	Answer<answer>
-			System.out.println(newMessage.split("-")[1]);
-			String a =newMessage.split("@",3)[1];
-			
+			String [] spl=newMessage.split("-",3);
+			String socketId =spl[1];
+			SocketChannel sc=ht.get(socketId);
+			sendClient(sc,spl[2]);
 		}
 
 		else if(newMessage.startsWith("NEWNEXT-")){
@@ -311,6 +312,16 @@ public class RoutingServer extends Thread{
 		return true;
 	}
 	
+	private void sendClient(SocketChannel sc, String string) {
+		PrintWriter out=null;
+		try {
+			out = new PrintWriter(sc.socket().getOutputStream(), true);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		out.println(string);
+	}
+
 	protected boolean isItAnotherMessage(String newMessage){
 		if(newMessage.startsWith("NEWLOW-")){
 			//New Range due to new Node in network

@@ -133,10 +133,9 @@ public class Server {
 		String result;
 		System.out.println("Action with: "+execute);
 		if(split.length>1){
-			//TODO remove Answer- as we need to add client id.return just the reply 
-			if(split[1].equals("insert")) result="Answer-"+insert(split[0],split[2]);
-			else if (split[1].equals("query")) result="Answer-"+query(split[0]);
-			else if (split[1].equals("delete")) result="Answer-"+delete(split[0]);
+			if(split[1].equals("insert")) result=insert(split[0],split[2]);
+			else if (split[1].equals("query")) result=query(split[0]);
+			else if (split[1].equals("delete")) result=delete(split[0]);
 			else result="Error";
 		}
 		else
