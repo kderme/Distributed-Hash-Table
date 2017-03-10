@@ -31,6 +31,16 @@ public class Console {
 		out.println("["+caller.getMethodName()+"]    "+"exit");
 	}
 	
+	public void logEntry(String iport){
+		StackTraceElement caller = new Throwable().getStackTrace()[1];
+		out.println("["+iport+"/"+caller.getMethodName()+"]    "+"entry");
+	}
+	
+	public void logExit(String iport){
+		StackTraceElement caller = new Throwable().getStackTrace()[1];
+		out.println("["+iport+"/"+caller.getMethodName()+"]    "+"exit");
+	}
+	
 	public void log(Object s){
 		StackTraceElement caller = new Throwable().getStackTrace()[1];
 		out.println("["+caller.getMethodName()+"]    "+s);

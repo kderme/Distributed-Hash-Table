@@ -200,7 +200,7 @@ public class Server {
 			{
 				current_key=(String) iter.next();
 				current_value=data.get(current_key);
-				result=result+"\n"+current_key+","+current_value;
+				result=result+"_"+current_key+","+current_value;
 			}
 			console.logExit();
 			return result;

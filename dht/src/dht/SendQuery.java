@@ -24,14 +24,38 @@ public class SendQuery {
 		return CltSocket;
 	}
 	
-	public static void main(String[] args)
+	public static void main(String[] args) throws InterruptedException
 	{
 		String ip="127.0.0.1";
 		String port="4001";
-		String message="4,insert,one";
+		String message;
+		Socket CltSocket;
+		message="15,insert,life";
 		String error="Error";
-		Socket CltSocket=sendMessage(ip,port,message,error);
-		try{
+		CltSocket=sendMessage(ip,port,message,error);
+		//Thread.sleep(1500);
+		message="22,insert,fire";
+		CltSocket=sendMessage(ip,port,message,error);
+		//Thread.sleep(1500);
+		port="4543";
+		message="4,insert,red";
+		CltSocket=sendMessage(ip,port,message,error);
+		//Thread.sleep(1500);
+		message="121,insert,paradox";
+		CltSocket=sendMessage(ip,port,message,error);
+		//Thread.sleep(1500);
+		port="4167";
+		message="*,query";
+		CltSocket=sendMessage(ip,port,message,error);
+		//Thread.sleep(1500);
+		message="4,delete";
+		CltSocket=sendMessage(ip,port,message,error);
+		//Thread.sleep(1500);
+		port="5054";
+		message="*,query";
+		CltSocket=sendMessage(ip,port,message,error);
+		
+		/*try{
 			BufferedReader inOne= new BufferedReader(
                 new InputStreamReader(CltSocket.getInputStream()));
 			String reply=inOne.readLine();
@@ -41,7 +65,7 @@ public class SendQuery {
 		catch(IOException e) {
 			e.printStackTrace();
 		}
-		
+		*/
 		return;
 	}
 }

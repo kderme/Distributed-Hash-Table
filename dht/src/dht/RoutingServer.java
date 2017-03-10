@@ -58,7 +58,7 @@ public class RoutingServer extends Thread{
 	 * 		One:	<yourId>-<start>-<end>-<ipNext>:<portNext>
 	 */
 	public void run(){
-		console.logEntry();
+		console.logEntry(myIp+":"+myPort);
 		try {
 			socketOne = new Socket(oneIp, onePort);
 			PrintWriter outOne= new PrintWriter(socketOne.getOutputStream(), true);
@@ -88,7 +88,7 @@ public class RoutingServer extends Thread{
 			
 		} catch (IOException e) {
 			e.printStackTrace();
-			System.out.println("One din`t respond! Exit");
+			System.out.println("["+myIp+":"+myPort+"]:"+"One din`t respond! Exit");
 			System.exit(1);
 		}
 		
@@ -105,7 +105,7 @@ public class RoutingServer extends Thread{
 	protected void takeAdditionalFromOne(String[] spl) {}
 
 	protected void listen(){
-		console.logEntry();
+		console.logEntry(myIp+":"+myPort);
 	    try {
 	        // Instead of creating a ServerSocket,
 	        // create a ServerSocketChannel
@@ -126,7 +126,7 @@ public class RoutingServer extends Thread{
 	        // Register the ServerSocketChannel, so we can
 	        // listen for incoming connections
 	        ssc.register( selector, SelectionKey.OP_ACCEPT );
-	        System.out.println( "Listening on port "+myPort );
+	        System.out.println( "["+myIp+":"+myPort+"]:"+"Listening on port "+myPort );
 
 	        while (true) {
 	          // See if we've had any activity -- either
@@ -161,7 +161,7 @@ public class RoutingServer extends Thread{
 	              // so we can listen for input on it
 
 	              Socket s = ss.accept();
-	              System.out.println( "Got connection from "+s );
+	              System.out.println( "["+myIp+":"+myPort+"]:"+"Got connection from "+s );
 
 	              // Make sure to make it non-blocking, so we can
 	              // use a selector on it.
@@ -222,7 +222,7 @@ public class RoutingServer extends Thread{
 	    }
 
 	  private boolean processInput( SocketChannel sc ) throws IOException {
-		    console.logEntry();
+		    console.logEntry(myIp+":"+myPort);
 		    ArrayList<String> ls=new ArrayList<String>();
 		    while(true){
 		    	//We assume messages that end with '\n' so we loop until newline
@@ -275,8 +275,7 @@ public class RoutingServer extends Thread{
 
 
 	protected void processMessage(String newMessage){
-		System.out.println("!!!!!!!!!!!!!!!!!!!!!!!!!!");
-		console.logEntry();
+		console.logEntry(myIp+":"+myPort);
 		console.log("newMessage:" +newMessage);
 		if(isItaBasicMessage(newMessage))
 			;
@@ -299,8 +298,8 @@ public class RoutingServer extends Thread{
 			if (newMessage.startsWith("ANSWER*"))
 				answerStar(currentClid,spl[2],sc);
 			else{
-				System.out.println("For user id: "+currentClid+" the answer is: "+spl[2]);
-				sendClient(sc,spl[2]);
+				System.out.println("["+myIp+":"+myPort+"]:"+"For user id: "+currentClid+" the answer is: "+spl[2]);
+				//sendClient(sc,spl[2]);
 			}
 		}
 
@@ -328,13 +327,16 @@ public class RoutingServer extends Thread{
 			StringBuilder sb= new StringBuilder();
 
 		    for(String tempString:data.get(ClientId)){
-		       sb.append(tempString);  
-		       sb.append("\n");
+		    	if(tempString!=null && !tempString.equals("null")){
+		    		sb.append(tempString);  
+		    		sb.append("_");
+		    	}
 		     }
 		    
 		    String reply=sb.toString();
-		    System.out.println("For user id: "+ClientId+" the answer is: "+reply);
-		    sendClient(sc,reply);
+		    if(reply!=null && !reply.equals("null")) reply=reply.substring(0,reply.length()-1);
+		    System.out.println("["+myIp+":"+myPort+"]:"+"For user id: "+ClientId+" the answer is: "+reply);
+		    //sendClient(sc,reply);
 		}
 		// TODO Auto-generated method stub
 		
@@ -402,6 +404,7 @@ console.log("position="+sendBack.position()+" limit="+sendBack.limit());
 	}
 	
 	protected void query(String newMessage){
+		console.logEntry(myIp+":"+myPort);
 		System.out.println("["+myIp+":"+myPort+"]: low="+start+" high="+end);
 		String sendMessage;
 		if(!newMessage.startsWith("@")){
@@ -429,7 +432,7 @@ console.log("position="+sendBack.position()+" limit="+sendBack.limit());
 		}
 		String [] message=newMessage.split(",");
 		String key=message[0];
-		System.out.println("Key to be tested is: "+key);
+		System.out.println("["+myIp+":"+myPort+"]:"+"Key to be tested is: "+key);
 		boolean isMine=isMine(key);
 		if (isMine){
 			System.out.println("["+myIp+":"+myPort+"]: my message:"+newMessage);
@@ -440,6 +443,7 @@ console.log("position="+sendBack.position()+" limit="+sendBack.limit());
 					String [] sendBack=sendMessage.split("@")[1].split("/",2);
 					sendMessage=sendMessage+",1";
 					this.numberOfNodes.put(Integer.valueOf(sendBack[1]),new Integer(0));
+					System.out.println("["+myIp+":"+myPort+"]: Sending to next node: "+sendMessage);
 					outNext.println(sendMessage);
 				}
 				else
@@ -449,7 +453,10 @@ console.log("position="+sendBack.position()+" limit="+sendBack.limit());
 					String [] sendBack=sendMessage.split("@")[1].split("/",2);
 					String token="ANSWER*";
 					sendMessage="@"+sendBack[0]+"/"+sendBack[1]+"@"+message[0]+","+message[1]+","+(Integer.parseInt(message[2])+1);
-					if(key.equals("*") && !sendBack[0].equals(myIp+":"+myPort)) outNext.println(sendMessage);
+					if(key.equals("*") && !sendBack[0].equals(myIp+":"+myPort)) {
+						System.out.println("["+myIp+":"+myPort+"]: Sending to next node: "+sendMessage);
+						outNext.println(sendMessage);
+					}
 					else this.numberOfNodes.put(Integer.valueOf(sendBack[1]),Integer.parseInt(message[2]));
 					sendMessage(sendBack[0], token+"-"+sendBack[1]+"-"+answer);
 				}	
@@ -467,6 +474,7 @@ console.log("position="+sendBack.position()+" limit="+sendBack.limit());
 			System.out.println("["+myIp+":"+myPort+"]: Not my message:"+newMessage);
 			outNext.println(sendMessage);
 		}
+		console.logExit();
 	}
 	
 	/*
@@ -476,7 +484,7 @@ console.log("position="+sendBack.position()+" limit="+sendBack.limit());
 		try {
 		//---take routing info
 		String next []=iPort.split(":");
-		System.out.println("Told to connect to: "+next[0]+":"+next[1]);				
+		System.out.println("["+myIp+":"+myPort+"]:"+"Told to connect to: "+next[0]+":"+next[1]);				
 		//close existing connection (if exists)
 		if(outNext!=null)
 			outNext.close();
@@ -490,7 +498,7 @@ console.log("position="+sendBack.position()+" limit="+sendBack.limit());
 			outNext=null;
 			return;
 		}
-		System.out.println("Port String has "+next[1].length()+" characters");
+		System.out.println("["+myIp+":"+myPort+"]:"+"Port String has "+next[1].length()+" characters");
 		//***********************************
 		socketNext = new Socket(next[0],Integer.parseInt(next[1]));
 		outNext = new PrintWriter(socketNext.getOutputStream(), true);
@@ -499,7 +507,7 @@ console.log("position="+sendBack.position()+" limit="+sendBack.limit());
 		}
 	}
 	protected void depart(String leaveMessage){
-		console.logEntry();
+		console.logEntry(myIp+":"+myPort);
 		String message="Leaving-"+this.myShaId;
 		boolean success=sendMessage(oneIp,onePort,message);
 		if(!(success || leaveMessage.startsWith("LeaveForced"))){
@@ -509,6 +517,7 @@ console.log("position="+sendBack.position()+" limit="+sendBack.limit());
 		//ready to leave
 		String leave="Leaving";
 		String myData=server.action(leave);
+		System.out.println("["+myIp+":"+myPort+"]: Sending to next node: "+myData);
 		this.outNext.println(myData);
 		System.exit(0);
 	}
