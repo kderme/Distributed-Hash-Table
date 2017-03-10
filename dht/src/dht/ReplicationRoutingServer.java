@@ -110,7 +110,7 @@ public class ReplicationRoutingServer extends RoutingServer{
 	protected boolean isHere(String key){
 		if(key.equals("*")) return true;
 		if (compareHash(start,end)>=0)
-			return compareHash(startReplica,key)>0 || compareHash(key,end)>=0 ;
+			return compareHash(startReplica,key)<0 || compareHash(key,end)<=0 ;
 		return compareHash(startReplica,key)<0  && compareHash(key,end)<=0 ;
 	}
 

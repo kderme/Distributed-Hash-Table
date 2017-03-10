@@ -38,12 +38,12 @@ public class RoutingServer extends Thread{
 	protected boolean amiFirst=false;
 	
 	//	fields for client
-	protected Hashtable<String,SocketChannel> ht=new Hashtable<String,SocketChannel>();
+	protected Hashtable<Integer,SocketChannel> ht=new Hashtable<Integer,SocketChannel>();
 	protected SocketChannel currentSC; //find sc here, not to change arguments of functions
-	protected long currentClid=0L;
+	protected Integer currentClid=new Integer(0);
 	
-	protected Hashtable<String,ArrayList<String>> data=new Hashtable<String,ArrayList<String>>();
-	protected int numberOfNodes;
+	protected Hashtable<Integer,ArrayList<String>> data=new Hashtable<Integer,ArrayList<String>>();
+	protected Hashtable<Integer,Integer> numberOfNodes=new Hashtable<Integer,Integer>();
 
 	public RoutingServer(String myIp,int myPort,String oneIp,int onePort){
 		this.myIp=myIp;
@@ -76,7 +76,6 @@ public class RoutingServer extends Thread{
 			String mySid = spl[0];
 			myId = Integer.parseInt(mySid);
 			//TODO we keep in track number of nodes. Id is not the best way
-			this.numberOfNodes=myId;
 			myShaId = hash(mySid);
 
 			//----take range
@@ -295,12 +294,14 @@ public class RoutingServer extends Thread{
 		else if (newMessage.startsWith("ANSWER")){
 			//	Answer<answer>
 			String [] spl=newMessage.split("-",3);
-			String currentClid =spl[1];
+			Integer currentClid =Integer.valueOf(spl[1]);
 			SocketChannel sc=ht.get(currentClid);
 			if (newMessage.startsWith("ANSWER*"))
 				answerStar(currentClid,spl[2],sc);
-			else
+			else{
+				System.out.println("For user id: "+currentClid+" the answer is: "+spl[2]);
 				sendClient(sc,spl[2]);
+			}
 		}
 
 		else if(newMessage.startsWith("NEWNEXT-")){
@@ -320,18 +321,20 @@ public class RoutingServer extends Thread{
 		return true;
 	}
 	
-	private void answerStar(String ClientId, String message, SocketChannel sc) {
+	private void answerStar(Integer ClientId, String message, SocketChannel sc) {
 		data.get(ClientId).add(message);
-		if(data.get(ClientId).size()==this.numberOfNodes){
+		if(data.get(ClientId).size()==this.numberOfNodes.get(Integer.valueOf(ClientId)) && this.numberOfNodes.get(Integer.valueOf(ClientId))!=0){
 			//if all nodes (even me) have replied, append all replies and send to client
 			StringBuilder sb= new StringBuilder();
 
-		    for(String tempString:data.get(currentClid)){
-		       sb.append(tempString);   
+		    for(String tempString:data.get(ClientId)){
+		       sb.append(tempString);  
+		       sb.append("\n");
 		     }
 		    
 		    String reply=sb.toString();
-			sendClient(sc,reply);
+		    System.out.println("For user id: "+ClientId+" the answer is: "+reply);
+		    sendClient(sc,reply);
 		}
 		// TODO Auto-generated method stub
 		
@@ -356,9 +359,7 @@ public class RoutingServer extends Thread{
 				// this means range become smaller (new came) so let`s send data at prev (=new)
 				String reply=server.action("NEWLOW-"+start);
 				sendMessage(spl[2],reply);
-				this.numberOfNodes++;
 			}
-			else this.numberOfNodes--;
 		}
 		else if(newMessage.startsWith("NEWDATA-")){
 			//New Range due to new Node in network
@@ -382,6 +383,7 @@ public class RoutingServer extends Thread{
 	}
 	
 	protected void query(String newMessage){
+		System.out.println("["+myIp+":"+myPort+"]: low="+start+" high="+end);
 		String sendMessage;
 		if(!newMessage.startsWith("@")){
 		/* 
@@ -394,10 +396,10 @@ public class RoutingServer extends Thread{
 			newMessage=parts[0];
 			for (i=1;i<parts.length;i++) newMessage=newMessage+","+parts[i];
 			sendMessage="@"+myIp+":"+myPort+"/"+currentClid+"@"+newMessage;
-			ht.put(currentClid+" ",currentSC);
+			ht.put(currentClid,currentSC);
 			
-			if(newMessage.equals("*"))
-				data.put(currentClid+" ",new ArrayList<String>());
+			if(parts[0].equals("*"))
+				data.put(currentClid,new ArrayList<String>());
 
 			currentClid++;
 		}
@@ -408,18 +410,42 @@ public class RoutingServer extends Thread{
 		}
 		String [] message=newMessage.split(",");
 		String key=message[0];
-		
+		System.out.println("Key to be tested is: "+key);
 		boolean isMine=isMine(key);
 		if (isMine){
-			String answer=server.action(newMessage);
-		//	send back reply
-			String [] sendBack=sendMessage.split("@")[1].split("/",2);
-			String token="ANSWER";
-			if (key.equals("*"))
-				token+="*";
-			sendMessage(sendBack[0], token+"-"+sendBack[1]+"-"+answer);
+			System.out.println("["+myIp+":"+myPort+"]: my message:"+newMessage);
+			if(key.equals("*"))
+			{
+				if(message.length==2)
+				{
+					String [] sendBack=sendMessage.split("@")[1].split("/",2);
+					sendMessage=sendMessage+",1";
+					this.numberOfNodes.put(Integer.valueOf(sendBack[1]),new Integer(0));
+					outNext.println(sendMessage);
+				}
+				else
+				{
+					String answer=server.action(newMessage);
+					//	send back reply
+					String [] sendBack=sendMessage.split("@")[1].split("/",2);
+					String token="ANSWER*";
+					sendMessage="@"+sendBack[0]+"/"+sendBack[1]+"@"+message[0]+","+message[1]+","+(Integer.parseInt(message[2])+1);
+					if(key.equals("*") && !sendBack[0].equals(myIp+":"+myPort)) outNext.println(sendMessage);
+					else this.numberOfNodes.put(Integer.valueOf(sendBack[1]),Integer.parseInt(message[2]));
+					sendMessage(sendBack[0], token+"-"+sendBack[1]+"-"+answer);
+				}	
+			}
+			else
+			{
+				String answer=server.action(newMessage);
+				//	send back reply
+				String [] sendBack=sendMessage.split("@")[1].split("/",2);
+				String token="ANSWER";
+				sendMessage(sendBack[0], token+"-"+sendBack[1]+"-"+answer);
+			}
 		}
 		else{
+			System.out.println("["+myIp+":"+myPort+"]: Not my message:"+newMessage);
 			outNext.println(sendMessage);
 		}
 	}
@@ -476,7 +502,7 @@ public class RoutingServer extends Thread{
 	protected boolean isMine(String key) {
 		if(key.equals("*")) return true;
 		if (compareHash(start,end)>=0)
-			return compareHash(start,key)>0 || compareHash(key,end)>=0 ;
+			return compareHash(start,key)<0 || compareHash(key,end)<=0 ;
 		return compareHash(start,key)<0  && compareHash(key,end)<=0 ;
 	}
 	
