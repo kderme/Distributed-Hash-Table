@@ -341,13 +341,32 @@ public class RoutingServer extends Thread{
 	}
 
 	private void sendClient(SocketChannel sc, String string) {
-		PrintWriter out=null;
-		try {
-			out = new PrintWriter(sc.socket().getOutputStream(), true);
-		} catch (IOException e) {
-			e.printStackTrace();
+		console.logEntry();
+		console.log("reply for client:"+string);
+		byte [] bs=string.getBytes();
+		ByteBuffer sendBack = ByteBuffer.wrap(bs);
+console.log("position="+sendBack.position()+" limit="+sendBack.limit());
+
+	try {
+		int write=-1,  counter=0;
+		int totalWrite=0;
+		while(totalWrite<sendBack.limit()){
+			counter++;
+console.log("position="+sendBack.position()+" limit="+sendBack.limit());
+			write=sc.write(sendBack);
+console.log("position="+sendBack.position()+" limit="+sendBack.limit());
+			totalWrite+=write;
+			console.log("write="+write+". Total write="+totalWrite);
+			
+			if(totalWrite==0 && counter>30){
+				//sc.register( selector, SelectionKey.OP_WRITE );
+				console.log("Write Failed multiple times");
+				return;
+			}
 		}
-		out.println(string);
+	} catch (IOException e) {		
+		e.printStackTrace();
+	}
 	}
 
 	protected boolean isItAnotherMessage(String newMessage){
