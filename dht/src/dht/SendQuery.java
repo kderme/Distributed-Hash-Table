@@ -33,28 +33,31 @@ public class SendQuery {
 		message="15,insert,life";
 		String error="Error";
 		CltSocket=sendMessage(ip,port,message,error);
-		//Thread.sleep(1500);
+		/*Thread.sleep(1500);
 		message="22,insert,fire";
 		CltSocket=sendMessage(ip,port,message,error);
-		//Thread.sleep(1500);
+		Thread.sleep(1500);
 		port="4543";
 		message="4,insert,red";
 		CltSocket=sendMessage(ip,port,message,error);
-		//Thread.sleep(1500);
+		Thread.sleep(1500);
 		message="121,insert,paradox";
 		CltSocket=sendMessage(ip,port,message,error);
-		//Thread.sleep(1500);
+		Thread.sleep(1500);
 		port="4167";
 		message="*,query";
 		CltSocket=sendMessage(ip,port,message,error);
-		//Thread.sleep(1500);
+		Thread.sleep(1500);
 		message="4,delete";
 		CltSocket=sendMessage(ip,port,message,error);
-		//Thread.sleep(1500);
+		Thread.sleep(1500);
 		port="5054";
 		message="*,query";
 		CltSocket=sendMessage(ip,port,message,error);
-		
+		Thread.sleep(3000);*/
+		port="5054";
+		message="*,query";
+		CltSocket=sendMessage(ip,port,message,error);
 		/*try{
 			BufferedReader inOne= new BufferedReader(
                 new InputStreamReader(CltSocket.getInputStream()));

@@ -12,6 +12,7 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Random;
 import java.util.Set;
@@ -59,13 +60,10 @@ public class ReplicationRoutingServer extends RoutingServer{
 			//New Range due to new Node in network
 			String[] spl=newMessage.split("-");
 			updateStart(spl[1]);
-			String reply=server.action(newMessage);
-			if(newMessage.startsWith("NEWLOW-")){
+			if(spl.length==3){
 				// this means range become smaller (new came) so let`s send data at prev (=new)
+				String reply=server.action("NEWLOW-"+start);
 				sendMessage(spl[2],reply);
-			}
-			else{
-				
 			}
 		}
 		else if(newMessage.startsWith("NEWLOW2-"))
@@ -152,57 +150,68 @@ public class ReplicationRoutingServer extends RoutingServer{
 	if(consistency==0)
 	{	
 		String sendMessage;
-		System.out.println("%%%%%%%%%%%%%%%%%");
 		int n=0;
 		if(newMessage.startsWith("##")){
 			//reading
-			String prevAnswer=newMessage=newMessage.split("##",3)[1];
-			sendMessage=newMessage;
+			String prevAnswer=newMessage.split("##",3)[1];
+			sendMessage=newMessage=newMessage.split("##",3)[2];
 			newMessage=newMessage.split("@")[2];
 			
 			String [] message=newMessage.split(",");
 			String key=message[0];	//TODO
-			String query=message[1];
 			boolean isHere=isHere(key);
 			if (!isHere){
-				//first who doesn`t find it sends back result of previous
-				sendMessage(sendMessage.split("@")[1], prevAnswer);
+				//first who doesn't find it sends back result of previous
+				System.out.println("["+myIp+":"+myPort+"]: Checked all Replicas. Final Answer: "+prevAnswer);
+				sendMessage(sendMessage.split("@")[1].split("/")[0], prevAnswer);
 			}
 			else{
 				//else send answer to next
-				String answer=server.action(sendMessage.split("@",4)[2]);
+				String answer=server.action(newMessage);
 				//***********************************
-				if(!answer.equals(prevAnswer)) outNext.println(sendMessage);
-				else
+				if(!answer.equals(prevAnswer.split("-")[2])) {
+					System.out.println("["+myIp+":"+myPort+"]: An error occured. Sending from start: "+sendMessage);
+					outNext.println(sendMessage);
+				}
+				else{
+					System.out.println("["+myIp+":"+myPort+"]: This one seems fine. Checking next with : "+sendMessage);
 				//***********************************	
-					outNext.println("##"+answer+"##"+sendMessage);
+					outNext.println("##ANSWER-"+prevAnswer.split("-")[1]+"-"+answer+"##"+sendMessage);
+				}
 			}
 		}
 		
 		else if(newMessage.startsWith("#")){
 			//writing
 			sendMessage=newMessage;
-			newMessage=newMessage.split("@",3)[2];
+			sendMessage=newMessage=newMessage.split("#",3)[2];
+			newMessage=newMessage.split("@")[2];
 			
 			String [] message=newMessage.split(",");
 			String key=message[0];	//TODO
-			String query=message[1];
 			boolean isHere=isHere(key);
 			if (isHere){
-				String answer=server.action(sendMessage.split("@",4)[2]);
-				outNext.println(newMessage);
+				String answer=server.action(newMessage);
+				System.out.println("["+myIp+":"+myPort+"]: This one seems fine. Checking next with : "+sendMessage);
+				outNext.println("#ANSWER-"+sendMessage.split("@",3)[1].split("/")[1]+"-OK#"+sendMessage);
 				
 			}
 			else
-				sendMessage(sendMessage.split("@",3)[1],"OK");
+			{
+				System.out.println("["+myIp+":"+myPort+"]: Checked all Replicas. All Done");
+				sendMessage(sendMessage.split("@",3)[1].split("/")[0],"ANSWER-"+sendMessage.split("@",3)[1].split("/")[1]+"-OK");
+			}
 		}
 		else{
 			
 			//reading or writing hasn`t begun
 			//create iport header
 			String iport;
+			int ClientId=0;
 			if(newMessage.startsWith("@")){
-				iport=newMessage.split("@",3)[1];
+				iport=newMessage.split("@",3)[1].split("/")[0];
+				ClientId=Integer.parseInt(newMessage.split("@",3)[1].split("/")[0]);
+				sendMessage=newMessage;
 				newMessage=newMessage.split("@",3)[2];
 			}
 			else
@@ -210,28 +219,73 @@ public class ReplicationRoutingServer extends RoutingServer{
 				iport=myIp+":"+myPort;						
 				String[] parts=newMessage.split(",");
 				if(!parts[0].equals("*")) parts[0]=hash(parts[0]);
+				else data.put(currentClid,new ArrayList<String>());
 				int i;
 				newMessage=parts[0];
 				for (i=1;i<parts.length;i++) newMessage=newMessage+","+parts[i];
+				ht.put(currentClid,currentSC);
+				ClientId=currentClid;
+				currentClid++;
 			}
 			
-			sendMessage="@"+iport+"@"+newMessage;
+			sendMessage="@"+iport+"/"+ClientId+"+@"+newMessage;
 			String [] message=newMessage.split(",");
 			String key=message[0];	//TODO
 			String query=message[1];
 			
 			boolean isHere=isHere(key);
 			if(!isHere){
+				System.out.println("["+myIp+":"+myPort+"]: Not my message:"+newMessage);
 				outNext.println(sendMessage);
 				return;
 			}
 			
 			//it`s here
 			if(query.equals("query")){
-				//if it`s here and it`s a querry send answer to next until its not here
+				//if it`s here and it`s a query send answer to next until its not here
 				//then send it back
-				String answer=server.action(newMessage);
-				outNext.println("##"+answer+"##"+sendMessage);
+				//**********************************************
+				if(key.equals("*"))
+				{
+					if(message.length==2)
+					{
+						String [] sendBack=sendMessage.split("@")[1].split("/",2);
+						sendMessage=sendMessage+",1";
+						this.numberOfNodes.put(Integer.valueOf(sendBack[1]),new Integer(0));
+						System.out.println("["+myIp+":"+myPort+"]: Sending to next node: "+sendMessage);
+						outNext.println(sendMessage);
+					}
+					else
+					{
+						String answer=server.action(newMessage);
+						//	send back reply
+						String [] sendBack=sendMessage.split("@")[1].split("/",2);
+						String token="ANSWER*";
+						sendMessage="@"+sendBack[0]+"/"+sendBack[1]+"@"+message[0]+","+message[1]+","+(Integer.parseInt(message[2])+1);
+						if(key.equals("*") && !sendBack[0].equals(myIp+":"+myPort)) {
+							System.out.println("["+myIp+":"+myPort+"]: Sending to next node: "+sendMessage);
+							outNext.println(sendMessage);
+						}
+						else this.numberOfNodes.put(Integer.valueOf(sendBack[1]),Integer.parseInt(message[2]));
+						sendMessage(sendBack[0], token+"-"+sendBack[1]+"-"+answer);
+					}
+					return;
+				}
+				
+				//**********************************************
+				boolean isMine=isMine(key);
+				if (isMine){
+					String answer=server.action(newMessage);
+					String [] sendBack=sendMessage.split("@")[1].split("/",2);
+					String token="ANSWER";
+					System.out.println("["+myIp+":"+myPort+"]: Master of data. Sending:"+newMessage);
+					outNext.println("##"+token+"-"+sendBack[1]+"-"+answer+"##"+sendMessage);
+				}
+				else
+				{
+					System.out.println("["+myIp+":"+myPort+"]: Not master of data. Transfering:"+newMessage);
+					outNext.println(sendMessage);
+				}
 				return;
 			}
 			
@@ -239,9 +293,13 @@ public class ReplicationRoutingServer extends RoutingServer{
 			if (isMine){
 				//We haven`t found a # header and its here
 				String answer=server.action(newMessage);
-				outNext.println("#"+sendMessage);
+				String [] sendBack=sendMessage.split("@")[1].split("/",2);
+				String token="ANSWER";
+				outNext.println("#"+token+"-"+sendBack[1]+"-"+answer+"#"+sendMessage);
+				return;
 			}
 			else{
+				System.out.println("["+myIp+":"+myPort+"]: Not master of data:"+newMessage);
 				outNext.println(sendMessage);
 			}
 		}
@@ -250,87 +308,111 @@ public class ReplicationRoutingServer extends RoutingServer{
 	{
 		String sendMessage;
 		int n=0;
-		if(newMessage.startsWith("##")){
-			//reading
-			String prevAnswer=newMessage=newMessage.split("##",3)[1];
+		if(newMessage.startsWith("#")){
+			//writing
 			sendMessage=newMessage;
+			sendMessage=newMessage=newMessage.split("#",3)[2];
 			newMessage=newMessage.split("@")[2];
 			
 			String [] message=newMessage.split(",");
 			String key=message[0];	//TODO
-			String query=message[1];
-			if (sendMessage.split("@")[1].equals(myIp+":"+myPort)){
-				//first who doesn`t find it sends back result of previous
-				return;
-			}
-			else{
-				//else send answer to next
-				String answer=server.action(sendMessage.split("@",4)[2]);
-				outNext.println("##"+answer+"##"+sendMessage);
-			}
-		}
-		
-		else if(newMessage.startsWith("#")){
-			//writing
-			sendMessage=newMessage;
-			newMessage=newMessage.split("@",3)[2];
-			
-			String [] message=newMessage.split(",");
-			String key=message[0];	//TODO
-			String query=message[1];
 			boolean isHere=isHere(key);
-			if (!sendMessage.split("@",3)[1].equals(myIp+":"+myPort)){
-				String answer=server.action(sendMessage.split("@",4)[2]);
-				outNext.println(newMessage);
-				
+			if (isHere && !sendMessage.split("@")[1].split("/")[0].equals(myIp+":"+myPort)){
+				String answer=server.action(newMessage);
+				System.out.println("["+myIp+":"+myPort+"]: This one seems fine. Checking next with : "+sendMessage);
+				outNext.println("#ANSWER-"+sendMessage.split("@",3)[1].split("/")[1]+"-OK#"+sendMessage);	
 			}
 			else
+			{
+				System.out.println("["+myIp+":"+myPort+"]: Checked all Replicas. All Done");
 				return;
+			}
 		}
 		else{
 			
 			//reading or writing hasn`t begun
 			//create iport header
 			String iport;
+			int ClientId=0;
 			if(newMessage.startsWith("@")){
-				iport=newMessage.split("@",3)[1];
+				iport=newMessage.split("@",3)[1].split("/")[0];
+				ClientId=Integer.parseInt(newMessage.split("@",3)[1].split("/")[0]);
+				sendMessage=newMessage;
 				newMessage=newMessage.split("@",3)[2];
 			}
 			else
 			{
 				iport=myIp+":"+myPort;						
 				String[] parts=newMessage.split(",");
-				parts[0]=hash(parts[0]);
+				if(!parts[0].equals("*")) parts[0]=hash(parts[0]);
+				else data.put(currentClid,new ArrayList<String>());
 				int i;
 				newMessage=parts[0];
-				for (i=1;i<parts.length;i++) newMessage=newMessage+"-"+parts[i];
+				for (i=1;i<parts.length;i++) newMessage=newMessage+","+parts[i];
+				ht.put(currentClid,currentSC);
+				ClientId=currentClid;
+				currentClid++;
 			}
 			
-			sendMessage="@"+iport+"@"+newMessage;
+			sendMessage="@"+iport+"/"+ClientId+"+@"+newMessage;
 			String [] message=newMessage.split(",");
 			String key=message[0];	//TODO
 			String query=message[1];
 			
 			boolean isHere=isHere(key);
 			if(!isHere){
+				System.out.println("["+myIp+":"+myPort+"]: Not my message:"+newMessage);
 				outNext.println(sendMessage);
 				return;
 			}
 			
 			//it`s here
 			if(query.equals("query")){
-				//if it`s here and it`s a querry send answer to next until its not here
+				//if it`s here and it`s a query send answer to next until its not here
 				//then send it back
+				//**********************************************
+				if(key.equals("*"))
+				{
+					if(message.length==2)
+					{
+						String [] sendBack=sendMessage.split("@")[1].split("/",2);
+						sendMessage=sendMessage+",1";
+						this.numberOfNodes.put(Integer.valueOf(sendBack[1]),new Integer(0));
+						System.out.println("["+myIp+":"+myPort+"]: Sending to next node: "+sendMessage);
+						outNext.println(sendMessage);
+					}
+					else
+					{
+						String answer=server.action(newMessage);
+						//	send back reply
+						String [] sendBack=sendMessage.split("@")[1].split("/",2);
+						String token="ANSWER*";
+						sendMessage="@"+sendBack[0]+"/"+sendBack[1]+"@"+message[0]+","+message[1]+","+(Integer.parseInt(message[2])+1);
+						if(key.equals("*") && !sendBack[0].equals(myIp+":"+myPort)) {
+							System.out.println("["+myIp+":"+myPort+"]: Sending to next node: "+sendMessage);
+							outNext.println(sendMessage);
+						}
+						else this.numberOfNodes.put(Integer.valueOf(sendBack[1]),Integer.parseInt(message[2]));
+						sendMessage(sendBack[0], token+"-"+sendBack[1]+"-"+answer);
+					}
+					return;
+				}
+				
+				//**********************************************
 				String answer=server.action(newMessage);
-				outNext.println("##"+answer+"##"+sendMessage);
-				sendMessage(sendMessage.split("@")[1], answer);
+				String [] sendBack=sendMessage.split("@")[1].split("/",2);
+				String token="ANSWER";
+				System.out.println("["+myIp+":"+myPort+"]: Owner of data. Sending answr:"+answer);
+				sendMessage(sendBack[0],"ANSWER-"+sendBack[1]+"-"+answer);
 				return;
 			}
 			
 			//We haven`t found a # header and its here
 			String answer=server.action(newMessage);
-			outNext.println("#"+sendMessage);
-			sendMessage(sendMessage.split("@",3)[1],"OK");
+			String [] sendBack=sendMessage.split("@")[1].split("/",2);
+			String token="ANSWER";
+			outNext.println("#"+token+"-"+sendBack[1]+"-"+answer+"#"+sendMessage);
+			sendMessage(sendBack[0],"ANSWER-"+sendBack[1]+"-OK");
 			return;
 		}
 	}

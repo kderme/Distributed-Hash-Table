@@ -17,19 +17,19 @@ public class RunServer {
 		rs.start();
 		Thread.sleep(1500);
 		if(replicationNumber==1)rs= new RoutingServer("127.0.0.1",5130,"127.0.0.1",4000);
-		else rs=new ReplicationRoutingServer("127.0.0.1",4000+5130,"127.0.0.1",4000,replicationNumber,0);	
+		else rs=new ReplicationRoutingServer("127.0.0.1",5130,"127.0.0.1",4000,replicationNumber,0);	
 		rs.start();
 		Thread.sleep(1500);
 		if(replicationNumber==1)rs= new RoutingServer("127.0.0.1",5054,"127.0.0.1",4000);
-		else rs=new ReplicationRoutingServer("127.0.0.1",4000+5054,"127.0.0.1",4000,replicationNumber,0);	
+		else rs=new ReplicationRoutingServer("127.0.0.1",5054,"127.0.0.1",4000,replicationNumber,0);	
 		rs.start();
 		Thread.sleep(1500);
 		if(replicationNumber==1)rs= new RoutingServer("127.0.0.1",4167,"127.0.0.1",4000);
-		else rs=new ReplicationRoutingServer("127.0.0.1",4000+4167,"127.0.0.1",4000,replicationNumber,0);	
+		else rs=new ReplicationRoutingServer("127.0.0.1",4167,"127.0.0.1",4000,replicationNumber,0);	
 		rs.start();
 		Thread.sleep(1500);
 		if(replicationNumber==1)rs= new RoutingServer("127.0.0.1",5289,"127.0.0.1",4000);
-		else rs=new ReplicationRoutingServer("127.0.0.1",4000+5289,"127.0.0.1",4000,replicationNumber,0);	
+		else rs=new ReplicationRoutingServer("127.0.0.1",5289,"127.0.0.1",4000,replicationNumber,0);	
 		rs.start();
 		}
 

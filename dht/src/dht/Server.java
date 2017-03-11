@@ -129,10 +129,11 @@ public class Server {
 	protected String action(String execute)
 	{
 		console.logEntry();
-		String[] split=execute.split(",");
+		String[] split=execute.split("-");
 		String result;
 		System.out.println("Action with: "+execute);
-		if(split.length>1){
+		if(split.length==1){
+			split=execute.split(",");
 			if(split[1].equals("insert")) result=insert(split[0],split[2]);
 			else if (split[1].equals("query")) result=query(split[0]);
 			else if (split[1].equals("delete")) result=delete(split[0]);

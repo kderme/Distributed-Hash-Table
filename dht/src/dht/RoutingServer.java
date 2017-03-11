@@ -137,7 +137,7 @@ public class RoutingServer extends Thread{
 	          // If we don't have any activity, loop around and wait
 	          // again
 	          if (num == 0) {
-	            console.log("num==0");
+	            console.log("["+myIp+":"+myPort+"]:"+"num==0");
 	            continue;
 	          }
 
@@ -155,7 +155,7 @@ public class RoutingServer extends Thread{
 	            if ((key.readyOps() & SelectionKey.OP_ACCEPT) ==
 	              SelectionKey.OP_ACCEPT) {
 
-	            	console.log( "New connection" );
+	            	console.log("["+myIp+":"+myPort+"]:"+ "New connection" );
 	              // It's an incoming connection.
 	              // Register this socket with the Selector
 	              // so we can listen for input on it
@@ -173,7 +173,7 @@ public class RoutingServer extends Thread{
 	            } else if ((key.readyOps() & SelectionKey.OP_READ) ==
 	              SelectionKey.OP_READ) {
 
-	              console.log("New Data");
+	              console.log("["+myIp+":"+myPort+"]:"+"New Data");
 	              SocketChannel sc = null;
 
 	              try {
@@ -194,7 +194,7 @@ public class RoutingServer extends Thread{
 	                    s = sc.socket();
 	                    s.close();
 	                  } catch( IOException ie ) {
-	                    console.log( "Error closing socket "+s+": "+ie );
+	                    console.log("["+myIp+":"+myPort+"]:"+ "Error closing socket "+s+": "+ie );
 	                  }
 	                }
 
@@ -205,9 +205,9 @@ public class RoutingServer extends Thread{
 	                //TODO also close it if it`s not One or Prev. Find this out from processInput
 	                try {
 	                  sc.close();
-	                } catch( IOException ie2 ) { console.log( ie2 ); }
+	                } catch( IOException ie2 ) { console.log( "["+myIp+":"+myPort+"]:"+ie2 ); }
 
-	                console.log( "Closed "+sc );
+	                console.log("["+myIp+":"+myPort+"]:"+ "Closed "+sc );
 	              }
 	            }
 	          }
@@ -229,15 +229,15 @@ public class RoutingServer extends Thread{
 		    	//At every loop we add input in list ls and then we concat
 			    	buffer.clear();
 			    	int read=sc.read( buffer );
-	console.log("position="+buffer.position()+" limit="+buffer.limit());
+	console.log("["+myIp+":"+myPort+"]:"+"position="+buffer.position()+" limit="+buffer.limit());
 			    	buffer.flip();
-	console.log("position="+buffer.position()+" limit="+buffer.limit());
+	console.log("["+myIp+":"+myPort+"]:"+"position="+buffer.position()+" limit="+buffer.limit());
 		    	if (!sc.isConnected() || read==-1) {
 				      return false;
 		    	}
 		    	if(read==0)
 		    		continue;
-		    	console.log("read="+read);
+		    	console.log("["+myIp+":"+myPort+"]:"+"read="+read);
 		    	byte [] bytes=new byte [read];
 		    	buffer.get(bytes,0,read);
 		    	
@@ -251,12 +251,12 @@ public class RoutingServer extends Thread{
 		    		break;
 		    	}
 		    	else{
-		    		console.log("not newline at the end");
+		    		console.log("["+myIp+":"+myPort+"]:"+"not newline at the end");
 		    	}
 		    }
 		    // If no data, close the connection
 		    
-		    console.log("position="+buffer.position()+" limit="+buffer.limit());
+		    console.log("["+myIp+":"+myPort+"]:"+"position="+buffer.position()+" limit="+buffer.limit());
 		    
 		    StringBuilder sb= new StringBuilder();
 
@@ -276,7 +276,7 @@ public class RoutingServer extends Thread{
 
 	protected void processMessage(String newMessage){
 		console.logEntry(myIp+":"+myPort);
-		console.log("newMessage:" +newMessage);
+		console.log("["+myIp+":"+myPort+"]: newMessage:" +newMessage);
 		if(isItaBasicMessage(newMessage))
 			;
 		else if (isItAnotherMessage(newMessage))
@@ -308,9 +308,14 @@ public class RoutingServer extends Thread{
 			connectWithNext(newMessage.split("-")[1]);
 		}
 		else if(newMessage.startsWith("BULK-")){
-			String answer=server.action(newMessage);
+			String answer;
+			if(newMessage.split("-").length>1) answer=server.action(newMessage);
+			else answer="OK";
 			if(!answer.equals("OK"))
-				depart("LeaveForced");
+				{
+					System.out.println("OOPS, answer is: "+answer);
+					depart("LeaveForced");
+				}
 		}
 		else
 				return false;
@@ -343,32 +348,33 @@ public class RoutingServer extends Thread{
 	}
 
 	private void sendClient(SocketChannel sc, String string) {
-		console.logEntry();
-		console.log("reply for client:"+string);
+		console.logEntry(myIp+":"+myPort);
+		console.log("["+myIp+":"+myPort+"]:"+"reply for client:"+string);
 		byte [] bs=string.getBytes();
 		ByteBuffer sendBack = ByteBuffer.wrap(bs);
-console.log("position="+sendBack.position()+" limit="+sendBack.limit());
+console.log("["+myIp+":"+myPort+"]:"+"position="+sendBack.position()+" limit="+sendBack.limit());
 
 	try {
 		int write=-1,  counter=0;
 		int totalWrite=0;
 		while(totalWrite<sendBack.limit()){
 			counter++;
-console.log("position="+sendBack.position()+" limit="+sendBack.limit());
+console.log("["+myIp+":"+myPort+"]:"+"position="+sendBack.position()+" limit="+sendBack.limit());
 			write=sc.write(sendBack);
-console.log("position="+sendBack.position()+" limit="+sendBack.limit());
+console.log("["+myIp+":"+myPort+"]:"+"position="+sendBack.position()+" limit="+sendBack.limit());
 			totalWrite+=write;
-			console.log("write="+write+". Total write="+totalWrite);
+			console.log("["+myIp+":"+myPort+"]:"+"write="+write+". Total write="+totalWrite);
 			
 			if(totalWrite==0 && counter>30){
 				//sc.register( selector, SelectionKey.OP_WRITE );
-				console.log("Write Failed multiple times");
+				console.log("["+myIp+":"+myPort+"]:"+"Write Failed multiple times");
 				return;
 			}
 		}
 	} catch (IOException e) {		
 		e.printStackTrace();
 	}
+	console.logExit(myIp+":"+myPort);
 	}
 
 	protected boolean isItAnotherMessage(String newMessage){

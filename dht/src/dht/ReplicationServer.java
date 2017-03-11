@@ -674,30 +674,7 @@ public class ReplicationServer extends Server{
 				String time=WriteTime.get(current_key);
 				if (time!=null) current_value=current_value+"^"+time;
 				//**************************
-				result=result+"\n"+current_key+","+current_value;
-			}
-			allKeys= replicaData.keySet();
-			if (allKeys.isEmpty()) return result;
-			iter=allKeys.iterator();
-			if(iter.hasNext() && result.equals(""))
-			{
-				current_key=(String) iter.next();
-				current_value=replicaData.get(current_key);
-				//**************************
-				String time=WriteTime.get(current_key);
-				if (time!=null) current_value=current_value+"^"+time;
-				//**************************
-				result=result+current_key+","+current_value;
-			}
-			while(iter.hasNext())
-			{
-				current_key=(String) iter.next();
-				current_value=replicaData.get(current_key);
-				//**************************
-				String time=WriteTime.get(current_key);
-				if (time!=null) current_value=current_value+"^"+time;
-				//**************************
-				result=result+"\n"+current_key+","+current_value;
+				result=result+"_"+current_key+","+current_value;
 			}
 			console.logExit();
 			return result;
