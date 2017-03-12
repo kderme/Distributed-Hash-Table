@@ -130,17 +130,21 @@ public class ReplicationPrimaryRoutingServer extends ReplicationRoutingServer {
 		Set<String> afterSet=networkIds.tailMap(newhash).keySet();
 		Iterator<String> before=beforeSet.iterator(),cycleafter=beforeSet.iterator();
 		Iterator<String> after=afterSet.iterator(),cyclebefore=afterSet.iterator();
-		int numbefore, numafter=0;
-		if(beforeSet.size()<replicationNumber) numafter=replicationNumber-beforeSet.size();
-		numbefore=replicationNumber-numafter;
+		int numbefore=0, numafter=0;
+		boolean flag=false;
+		if(replicationNumber>beforeSet.size()) {
+			numafter=replicationNumber-1-beforeSet.size();
+			numbefore=beforeSet.size();
+			flag=true;
+		}
+		else numbefore=replicationNumber-1;
 		System.out.println(numbefore+"]!!!!!!!!!["+numafter);
 		if(this.replicationNumber==replicationNumber)
 		{
-			if(numafter>0)
+			if(flag)
 			{
 				int ignore=afterSet.size()-numafter;
 				while(ignore-->0) lowvalue=cyclebefore.next();
-				numafter--;
 			}
 			while(numafter>0)
 			{
@@ -153,16 +157,10 @@ public class ReplicationPrimaryRoutingServer extends ReplicationRoutingServer {
 				sendMessage(network[0],network[1],"NEWREPLICALOW-"+replicalow+"-"+dest,destination+" does not answer");
 				numafter--;
 			}
-			if(numbefore>0)
+			if(!flag)
 			{
-				int ignore=beforeSet.size()-1-numbefore;
-				while(ignore-->0){
-					if(lowvalue.equals(newhash)) {
-						lowvalue=before.next();
-						numbefore--;
-					}
-					else before.next();
-				}
+				int ignore=beforeSet.size()-numbefore;
+				while(ignore-->0) lowvalue=before.next();
 			}
 			while(numbefore>0)
 			{

@@ -107,12 +107,14 @@ public class ReplicationRoutingServer extends RoutingServer{
 
 	protected boolean isHere(String key){
 		if(key.equals("*")) return true;
-		if (compareHash(start,end)>=0)
-			return compareHash(startReplica,key)<0 || compareHash(key,end)<=0 ;
-		return compareHash(startReplica,key)<0  && compareHash(key,end)<=0 ;
+		if (compareHash(startReplica,end)>=0)
+			return compareHash(startReplica,key)<=0 || compareHash(key,end)<0 ;
+		return compareHash(startReplica,key)<=0  && compareHash(key,end)<0 ;
 	}
 
 	protected boolean sendMessage(String ip, int port, String message){
+		console.log("["+myIp+":"+myPort+"] Sending message: "+message);
+		console.log("to: "+ip+":"+port);
 		try{
 			Socket socket = new Socket(ip,port);
 			PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
@@ -126,7 +128,6 @@ public class ReplicationRoutingServer extends RoutingServer{
 	}
 
 	protected boolean sendMessage(String iPort,String message){
-		
 		//---take routing info
 		String next []=iPort.split(":");
 		
@@ -162,21 +163,39 @@ public class ReplicationRoutingServer extends RoutingServer{
 			boolean isHere=isHere(key);
 			if (!isHere){
 				//first who doesn't find it sends back result of previous
-				System.out.println("["+myIp+":"+myPort+"]: Checked all Replicas. Final Answer: "+prevAnswer);
+				console.log("["+myIp+":"+myPort+"]: Checked all Replicas. Final Answer: "+prevAnswer);
 				sendMessage(sendMessage.split("@")[1].split("/")[0], prevAnswer);
 			}
 			else{
 				//else send answer to next
 				String answer=server.action(newMessage);
 				//***********************************
-				if(!answer.equals(prevAnswer.split("-")[2])) {
-					System.out.println("["+myIp+":"+myPort+"]: An error occured. Sending from start: "+sendMessage);
-					outNext.println(sendMessage);
-				}
-				else{
-					System.out.println("["+myIp+":"+myPort+"]: This one seems fine. Checking next with : "+sendMessage);
-				//***********************************	
+				if(answer==null) System.out.println("This is the problem");
+				if(answer==null && prevAnswer.split("-")[2].equals("null"))
+				{ 
+					console.log("["+myIp+":"+myPort+"]: This one seems fine. Checking next with : "+sendMessage);
+					//***********************************	
 					outNext.println("##ANSWER-"+prevAnswer.split("-")[1]+"-"+answer+"##"+sendMessage);
+				}
+				else {
+					if(answer==null || prevAnswer.split("-")[2].equals("null"))
+					{	
+						console.log("["+myIp+":"+myPort+"]: An error occured. Sending from start: "+sendMessage);
+						outNext.println(sendMessage);
+					}
+					else {
+						if(answer.equals(prevAnswer.split("-")[2]))
+						{
+							console.log("["+myIp+":"+myPort+"]: This one seems fine. Checking next with : "+sendMessage);
+							//***********************************	
+							outNext.println("##ANSWER-"+prevAnswer.split("-")[1]+"-"+answer+"##"+sendMessage);
+							
+						}
+						else {
+							console.log("["+myIp+":"+myPort+"]: An error occured. Sending from start: "+sendMessage);
+							outNext.println(sendMessage);
+						}
+					}
 				}
 			}
 		}
@@ -192,13 +211,13 @@ public class ReplicationRoutingServer extends RoutingServer{
 			boolean isHere=isHere(key);
 			if (isHere){
 				String answer=server.action(newMessage);
-				System.out.println("["+myIp+":"+myPort+"]: This one seems fine. Checking next with : "+sendMessage);
+				console.log("["+myIp+":"+myPort+"]: This one seems fine. Checking next with : "+sendMessage);
 				outNext.println("#ANSWER-"+sendMessage.split("@",3)[1].split("/")[1]+"-OK#"+sendMessage);
 				
 			}
 			else
 			{
-				System.out.println("["+myIp+":"+myPort+"]: Checked all Replicas. All Done");
+				console.log("["+myIp+":"+myPort+"]: Checked all Replicas. All Done");
 				sendMessage(sendMessage.split("@",3)[1].split("/")[0],"ANSWER-"+sendMessage.split("@",3)[1].split("/")[1]+"-OK");
 			}
 		}
@@ -210,7 +229,7 @@ public class ReplicationRoutingServer extends RoutingServer{
 			int ClientId=0;
 			if(newMessage.startsWith("@")){
 				iport=newMessage.split("@",3)[1].split("/")[0];
-				ClientId=Integer.parseInt(newMessage.split("@",3)[1].split("/")[0]);
+				ClientId=Integer.parseInt(newMessage.split("@",3)[1].split("/")[1]);
 				sendMessage=newMessage;
 				newMessage=newMessage.split("@",3)[2];
 			}
@@ -228,14 +247,14 @@ public class ReplicationRoutingServer extends RoutingServer{
 				currentClid++;
 			}
 			
-			sendMessage="@"+iport+"/"+ClientId+"+@"+newMessage;
+			sendMessage="@"+iport+"/"+ClientId+"@"+newMessage;
 			String [] message=newMessage.split(",");
 			String key=message[0];	//TODO
 			String query=message[1];
 			
 			boolean isHere=isHere(key);
 			if(!isHere){
-				System.out.println("["+myIp+":"+myPort+"]: Not my message:"+newMessage);
+				console.log("["+myIp+":"+myPort+"]: Not my message:"+newMessage);
 				outNext.println(sendMessage);
 				return;
 			}
@@ -252,7 +271,7 @@ public class ReplicationRoutingServer extends RoutingServer{
 						String [] sendBack=sendMessage.split("@")[1].split("/",2);
 						sendMessage=sendMessage+",1";
 						this.numberOfNodes.put(Integer.valueOf(sendBack[1]),new Integer(0));
-						System.out.println("["+myIp+":"+myPort+"]: Sending to next node: "+sendMessage);
+						console.log("["+myIp+":"+myPort+"]: Sending to next node: "+sendMessage);
 						outNext.println(sendMessage);
 					}
 					else
@@ -263,7 +282,7 @@ public class ReplicationRoutingServer extends RoutingServer{
 						String token="ANSWER*";
 						sendMessage="@"+sendBack[0]+"/"+sendBack[1]+"@"+message[0]+","+message[1]+","+(Integer.parseInt(message[2])+1);
 						if(key.equals("*") && !sendBack[0].equals(myIp+":"+myPort)) {
-							System.out.println("["+myIp+":"+myPort+"]: Sending to next node: "+sendMessage);
+							console.log("["+myIp+":"+myPort+"]: Sending to next node: "+sendMessage);
 							outNext.println(sendMessage);
 						}
 						else this.numberOfNodes.put(Integer.valueOf(sendBack[1]),Integer.parseInt(message[2]));
@@ -278,12 +297,12 @@ public class ReplicationRoutingServer extends RoutingServer{
 					String answer=server.action(newMessage);
 					String [] sendBack=sendMessage.split("@")[1].split("/",2);
 					String token="ANSWER";
-					System.out.println("["+myIp+":"+myPort+"]: Master of data. Sending:"+newMessage);
+					console.log("["+myIp+":"+myPort+"]: Master of data. Sending:"+newMessage);
 					outNext.println("##"+token+"-"+sendBack[1]+"-"+answer+"##"+sendMessage);
 				}
 				else
 				{
-					System.out.println("["+myIp+":"+myPort+"]: Not master of data. Transfering:"+newMessage);
+					console.log("["+myIp+":"+myPort+"]: Not master of data. Transfering:"+newMessage);
 					outNext.println(sendMessage);
 				}
 				return;
@@ -299,7 +318,7 @@ public class ReplicationRoutingServer extends RoutingServer{
 				return;
 			}
 			else{
-				System.out.println("["+myIp+":"+myPort+"]: Not master of data:"+newMessage);
+				console.log("["+myIp+":"+myPort+"]: Not master of data:"+newMessage);
 				outNext.println(sendMessage);
 			}
 		}
@@ -319,12 +338,12 @@ public class ReplicationRoutingServer extends RoutingServer{
 			boolean isHere=isHere(key);
 			if (isHere && !sendMessage.split("@")[1].split("/")[0].equals(myIp+":"+myPort)){
 				String answer=server.action(newMessage);
-				System.out.println("["+myIp+":"+myPort+"]: This one seems fine. Checking next with : "+sendMessage);
+				console.log("["+myIp+":"+myPort+"]: This one seems fine. Checking next with : "+sendMessage);
 				outNext.println("#ANSWER-"+sendMessage.split("@",3)[1].split("/")[1]+"-OK#"+sendMessage);	
 			}
 			else
 			{
-				System.out.println("["+myIp+":"+myPort+"]: Checked all Replicas. All Done");
+				console.log("["+myIp+":"+myPort+"]: Checked all Replicas. All Done");
 				return;
 			}
 		}
@@ -354,14 +373,14 @@ public class ReplicationRoutingServer extends RoutingServer{
 				currentClid++;
 			}
 			
-			sendMessage="@"+iport+"/"+ClientId+"+@"+newMessage;
+			sendMessage="@"+iport+"/"+ClientId+"@"+newMessage;
 			String [] message=newMessage.split(",");
 			String key=message[0];	//TODO
 			String query=message[1];
 			
 			boolean isHere=isHere(key);
 			if(!isHere){
-				System.out.println("["+myIp+":"+myPort+"]: Not my message:"+newMessage);
+				console.log("["+myIp+":"+myPort+"]: Not my message:"+newMessage);
 				outNext.println(sendMessage);
 				return;
 			}
@@ -378,7 +397,7 @@ public class ReplicationRoutingServer extends RoutingServer{
 						String [] sendBack=sendMessage.split("@")[1].split("/",2);
 						sendMessage=sendMessage+",1";
 						this.numberOfNodes.put(Integer.valueOf(sendBack[1]),new Integer(0));
-						System.out.println("["+myIp+":"+myPort+"]: Sending to next node: "+sendMessage);
+						console.log("["+myIp+":"+myPort+"]: Sending to next node: "+sendMessage);
 						outNext.println(sendMessage);
 					}
 					else
@@ -389,7 +408,7 @@ public class ReplicationRoutingServer extends RoutingServer{
 						String token="ANSWER*";
 						sendMessage="@"+sendBack[0]+"/"+sendBack[1]+"@"+message[0]+","+message[1]+","+(Integer.parseInt(message[2])+1);
 						if(key.equals("*") && !sendBack[0].equals(myIp+":"+myPort)) {
-							System.out.println("["+myIp+":"+myPort+"]: Sending to next node: "+sendMessage);
+							console.log("["+myIp+":"+myPort+"]: Sending to next node: "+sendMessage);
 							outNext.println(sendMessage);
 						}
 						else this.numberOfNodes.put(Integer.valueOf(sendBack[1]),Integer.parseInt(message[2]));
@@ -402,7 +421,7 @@ public class ReplicationRoutingServer extends RoutingServer{
 				String answer=server.action(newMessage);
 				String [] sendBack=sendMessage.split("@")[1].split("/",2);
 				String token="ANSWER";
-				System.out.println("["+myIp+":"+myPort+"]: Owner of data. Sending answr:"+answer);
+				console.log("["+myIp+":"+myPort+"]: Owner of data. Sending answr:"+answer);
 				sendMessage(sendBack[0],"ANSWER-"+sendBack[1]+"-"+answer);
 				return;
 			}
