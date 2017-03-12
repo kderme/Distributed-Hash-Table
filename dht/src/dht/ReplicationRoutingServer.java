@@ -336,9 +336,12 @@ public class ReplicationRoutingServer extends RoutingServer{
 			String [] message=newMessage.split(",");
 			String key=message[0];	//TODO
 			boolean isHere=isHere(key);
-			if (isHere && !sendMessage.split("@")[1].split("/")[0].equals(myIp+":"+myPort)){
-				String answer=server.action(newMessage);
-				console.log("["+myIp+":"+myPort+"]: This one seems fine. Checking next with : "+sendMessage);
+			if (!sendMessage.split("@")[1].split("/")[0].equals(myIp+":"+myPort)){
+				if(isHere) 
+				{
+					String answer=server.action(newMessage);
+					console.log("["+myIp+":"+myPort+"]: This one seems fine. Checking next with : "+sendMessage);
+				}
 				outNext.println("#ANSWER-"+sendMessage.split("@",3)[1].split("/")[1]+"-OK#"+sendMessage);	
 			}
 			else
@@ -355,7 +358,7 @@ public class ReplicationRoutingServer extends RoutingServer{
 			int ClientId=0;
 			if(newMessage.startsWith("@")){
 				iport=newMessage.split("@",3)[1].split("/")[0];
-				ClientId=Integer.parseInt(newMessage.split("@",3)[1].split("/")[0]);
+				ClientId=Integer.parseInt(newMessage.split("@",3)[1].split("/")[1]);
 				sendMessage=newMessage;
 				newMessage=newMessage.split("@",3)[2];
 			}
