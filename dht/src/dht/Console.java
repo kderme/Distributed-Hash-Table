@@ -6,43 +6,52 @@ import java.io.PrintStream;
 
 public class Console {
 	public PrintStream out=System.out;
+	public String iport="";
+	public boolean writeToFile=false;
+	private PrintStream outFile;
 	
 	public Console(){
 	}
 	
-	public Console(String logFileName){
+	public Console(String iport){
+		this.iport=iport;
+	}
+	
+	public Console(String iport,String logFileName){
+		this.iport=iport;
 		try {
 			PrintStream out = new PrintStream(
 				     new FileOutputStream(logFileName));
-			this.out=out;
+			this.outFile=out;
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
-			System.out.println(logFileName+ "din`t open. Log file is stdout now");
+			log(logFileName+ "din`t open. Log file is stdout now");
 		} 
+		writeToFile=true;
 	}
 	
 	public void logEntry(){
 		StackTraceElement caller = new Throwable().getStackTrace()[1];
-		out.println("["+caller.getMethodName()+"]    "+"entry");
+		String st="["+iport+"/"+caller.getMethodName()+"]    "+"entry";
+		prints(st);
 	}
 	
 	public void logExit(){
 		StackTraceElement caller = new Throwable().getStackTrace()[1];
-		out.println("["+caller.getMethodName()+"]    "+"exit");
-	}
-	
-	public void logEntry(String iport){
-		StackTraceElement caller = new Throwable().getStackTrace()[1];
-		out.println("["+iport+"/"+caller.getMethodName()+"]    "+"entry");
-	}
-	
-	public void logExit(String iport){
-		StackTraceElement caller = new Throwable().getStackTrace()[1];
-		out.println("["+iport+"/"+caller.getMethodName()+"]    "+"exit");
+		String st="["+iport+"/"+caller.getMethodName()+"]    "+"exit";
+		prints(st);
 	}
 	
 	public void log(Object s){
 		StackTraceElement caller = new Throwable().getStackTrace()[1];
-		out.println("["+caller.getMethodName()+"]    "+s);
+		String st="["+iport+"/"+caller.getMethodName()+"]    "+s;
+		prints(st);
+	}
+	 
+	public void prints(String s){
+		out.println(s);
+		if(writeToFile){
+			outFile.println(s);
+		}
 	}
 }

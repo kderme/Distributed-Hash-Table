@@ -131,7 +131,7 @@ public class Server {
 		console.logEntry();
 		String[] split=execute.split("-");
 		String result;
-		System.out.println("Action with: "+execute);
+		console.log("Action with: "+execute);
 		if(split.length==1){
 			split=execute.split(",");
 			if(split[1].equals("insert")) result=insert(split[0],split[2]);
@@ -211,7 +211,7 @@ public class Server {
 			if(data.containsKey(key))
 			{
 				String current_value=data.get(key);
-				result=key+","+current_value;
+				result=current_value;
 				console.logExit();
 				return result;
 			}

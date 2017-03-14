@@ -18,6 +18,7 @@ public class PrimaryRoutingServer extends RoutingServer {
 	private ServerSocket SrvSocket;
 	private Socket CltSocket;
 	protected boolean isprimaryRunning;
+	private Console console;
 	
 	public PrimaryRoutingServer(String myIp,int myPort,String oneIp,int onePort)
 	{
@@ -29,6 +30,7 @@ public class PrimaryRoutingServer extends RoutingServer {
 		//networkIds.put(myShaId,myIp+":"+myPort);
 		lastIdGiven=0;
 		isprimaryRunning=false;
+		this.console=new Console("0000");
 	}
 	
 	public void run(){
@@ -44,16 +46,15 @@ public class PrimaryRoutingServer extends RoutingServer {
 	
 	protected void sendMessage(String Ip, String port, String message, String errorMessage)
 	{
-		console.logEntry();
-		System.out.println("[One]: Sending message: "+message);
-		System.out.println("to: "+Ip+":"+port);
+		console.log("Sending message: "+message);
+		console.log("to: "+Ip+":"+port);
 		try{	
 			CltSocket=new Socket(Ip,Integer.parseInt(port));
 			new PrintWriter(CltSocket.getOutputStream(), true).println(message);
 			CltSocket.close();
 		} catch (IOException e) {
 			e.printStackTrace();
-			System.out.println(errorMessage);
+			console.log(errorMessage);
 			System.exit(1);
 		}
 		console.logExit();
@@ -64,7 +65,7 @@ public class PrimaryRoutingServer extends RoutingServer {
 	{
 		console.logEntry(); 
 		try {
-			   System.out.println("Connecting to "+this.oneIp+" to port "+this.onePort);
+			   console.log("Connecting to "+this.oneIp+" to port "+this.onePort);
 			   SrvSocket=new ServerSocket(this.onePort,5,InetAddress.getByName(this.oneIp));
 			   while(true){
 				  
@@ -72,10 +73,10 @@ public class PrimaryRoutingServer extends RoutingServer {
 					   InputStreamReader inputStreamReader=new InputStreamReader(socket.getInputStream());
 					   BufferedReader bufferedReader =new BufferedReader(inputStreamReader);
 					   String message=bufferedReader.readLine();
-					   System.out.println("Got this: "+message);
+					   console.log("Got this: "+message);
 					   
 					   String reply=examineMessage(message);
-					   System.out.println("Answering with this: "+reply);
+					   console.log("Answering with this: "+reply);
 					   PrintStream PS=new PrintStream(socket.getOutputStream());
 					   PS.println(reply);
 					   
@@ -83,7 +84,7 @@ public class PrimaryRoutingServer extends RoutingServer {
 			   		
 		} catch (IOException e) {
 			e.printStackTrace();
-			System.out.println("Socket "+this.myPort+" Closed. Exiting...");
+			console.log("Socket "+this.myPort+" Closed. Exiting...");
 			return;
 		}
 		finally{
@@ -91,7 +92,7 @@ public class PrimaryRoutingServer extends RoutingServer {
 				SrvSocket.close();
 				console.logExit();
 			} catch (IOException e) {
-				System.out.println("Shouldnt close but closed");
+				console.log("Shouldnt close but closed");
 				e.printStackTrace();
 			}
 		}
@@ -154,7 +155,7 @@ public class PrimaryRoutingServer extends RoutingServer {
 	protected String newNode(String message)//message is the ip:port
 	{
 		console.logEntry();
-		System.out.println("No Replications used");
+		console.log("No Replications used");
 		lastIdGiven++;
 		String shaId=hash(lastIdGiven);
 		String prev_key;
@@ -162,13 +163,13 @@ public class PrimaryRoutingServer extends RoutingServer {
 		if(networkIds.headMap(shaId).isEmpty()) prev_key=networkIds.lastKey();
 		else prev_key=networkIds.headMap(shaId).lastKey();
 		current_value=networkIds.get(prev_key);
-		System.out.println("We are Calling updateNext With parameters: "+current_value+" and "+message);
+		console.log("We are Calling updateNext With parameters: "+current_value+" and "+message);
 		updateNext(current_value,message);
 		String next_key;
 		if(networkIds.tailMap(shaId).isEmpty()) next_key=networkIds.firstKey();
 		else next_key=networkIds.tailMap(shaId).firstKey();
 		current_value=networkIds.get(next_key);
-		System.out.println("Inserting in map: "+shaId+", "+message);
+		console.log("Inserting in map: "+shaId+", "+message);
 		networkIds.put(shaId,message);
 		String result="";
 		result=result+lastIdGiven+"-"+divideRanges(prev_key,shaId,next_key);
@@ -204,7 +205,7 @@ public class PrimaryRoutingServer extends RoutingServer {
 		String[] split=message.split("-");
 		if(split[0].equals("HELLO"))
 		{
-			System.out.println("Entering here sending this: "+split[1]);
+			console.log("Entering here sending this: "+split[1]);
 			//***************************
 			if(networkIds.isEmpty())
 			{

@@ -7,21 +7,32 @@ import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Scanner;
+import java.util.concurrent.ThreadLocalRandom;
 
 public class Terminal {
 	public int port; 
 	PrintStream out = System.out;
 	private String [] cmds=
-{"help", "exit","start", "leave", "addnode", "insert","query", "delete","*"};
+{"help", "exit","start", "leave", "addnode", "insert","query", "delete","benchmark"};
 	  
     private String [] options=
 {"(for this message)", "","<port> <k> 0|1|2", "<port>", "<port>", "<key> <value> <port>",
-     "<key> <port>", "<key> <port>", "<port>"};
+     "<key> <port>", "<key> <port>","1|2|3"};
     
     public int k=1;
     public int rep=0;
     
+    private String inputDirPath="input/";
+	private String [] files={"insert.txt","query.txt","request.txt"};
+	private String [] type={"insert,", "query,", ""};
+    
+	private ArrayList<Integer> ports=new ArrayList<Integer>(10);
+	
 	private void start() {
 		Scanner sc=new Scanner(System.in);
 		String s=null;
@@ -65,9 +76,10 @@ public class Terminal {
 			if(rep==0)
 prs= new PrimaryRoutingServer("127.0.0.1",1111,"127.0.0.1",port);
 			else
-prs=new ReplicationPrimaryRoutingServer("127.0.0.1",1111,"127.0.0.1",port,rep,k);
+prs=new ReplicationPrimaryRoutingServer("127.0.0.1",1111,"127.0.0.1",port,k,rep);
 			prs.start();
 			new Thread(prs).start();
+			ports.add(1111);
 		}
 		else if(spl[0].equals("leave")){
 			simpleSend("Leave",Integer.parseInt(spl[1]));
@@ -77,8 +89,9 @@ prs=new ReplicationPrimaryRoutingServer("127.0.0.1",1111,"127.0.0.1",port,rep,k)
 			if(rep==0)
 rs= new RoutingServer("127.0.0.1",Integer.parseInt(spl[1]),"127.0.0.1",4000);
 			else
-rs=new ReplicationRoutingServer("127.0.0.1",2222,"127.0.0.1",4000,k,rep);
+rs=new ReplicationRoutingServer("127.0.0.1",Integer.parseInt(spl[1]),"127.0.0.1",4000,k,rep);
 			rs.start();
+			ports.add(Integer.parseInt(spl[1]));
 		}
 		else if(spl[0].equals("insert")){
 			String query=spl[1]+",insert,"+spl[2];
@@ -92,9 +105,11 @@ rs=new ReplicationRoutingServer("127.0.0.1",2222,"127.0.0.1",4000,k,rep);
 			String query=spl[1]+",delete";
 			send(query,Integer.parseInt(spl[2]));
 		}
-		else if(spl[0].equals("*")){
-			send("*",Integer.parseInt(spl[1]));
+		else if(spl[0].equals("benchmark")){
+			benchmark(spl);
 		}
+		else
+			throw new Throwable();
 	}catch (Throwable e){
 		e.printStackTrace();
 		System.out.println("Invalid command");
@@ -102,6 +117,55 @@ rs=new ReplicationRoutingServer("127.0.0.1",2222,"127.0.0.1",4000,k,rep);
 	}
 	}
 	
+	private void benchmark(String[] spl) throws IOException {
+		int test=Integer.parseInt(spl[1]);
+		List<String> list = Files.readAllLines(Paths.get(inputDirPath + files[test]));
+		String [] lines = list.toArray(new String[list.size()]);
+		for(int i=0; i<lines.length; i++){
+			String [] ss=lines[i].split(",");
+			for(int j=0; j<ss.length; j++)
+				ss[j]=ss[j].trim();
+		switch(test){ 
+		case 0: lines[i]=ss[0]+",insert,"+ss[1];
+			break;
+		case 1: lines[i]=ss[0]+",querry";
+			break;
+		case 2: 
+			lines[i]=ss[1]+","+ss[0];
+			if(ss.length==3)
+				lines[i]+=ss[2];
+			break;
+		}
+		}
+		
+		//establish connections
+		int nodes=ports.size();
+		Socket [] socket=new Socket[nodes];
+		PrintWriter [] pw=new PrintWriter[nodes];
+		BufferedReader [] br=new BufferedReader[nodes];
+		for (int i=0;i<nodes;i++){
+			socket[i]=new Socket("127.0.0.1",ports.get(i));
+			pw[i] = new PrintWriter(socket[i].getOutputStream(), true);
+			InputStreamReader inputstream=new InputStreamReader(socket[i].getInputStream());
+			br[i]=new BufferedReader(inputstream);
+		}
+		
+		Integer [] randoms=new Integer[lines.length];
+		for (int i=0; i<lines.length; i++){
+			int r=ThreadLocalRandom.current().nextInt(0, nodes);//select in [0,1,...,nodes-1]
+			randoms[i]=r;
+		}
+		
+		for (int i=0; i<lines.length; i++){
+			pw[randoms[i]].println(lines[i]);
+			String reply=br[randoms[i]].readLine();
+			out.println("->"+lines[i]);
+			out.println("->"+reply);
+		}
+
+		
+	}
+
 	private void simpleSend(String mess, int port) {
 	try{
 		Socket sock = new Socket("127.0.0.1",port);

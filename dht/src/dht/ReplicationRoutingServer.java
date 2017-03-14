@@ -170,7 +170,7 @@ public class ReplicationRoutingServer extends RoutingServer{
 				//else send answer to next
 				String answer=server.action(newMessage);
 				//***********************************
-				if(answer==null) System.out.println("This is the problem");
+				if(answer==null) console.log("This is the problem");
 				if(answer==null && prevAnswer.split("-")[2].equals("null"))
 				{ 
 					console.log("["+myIp+":"+myPort+"]: This one seems fine. Checking next with : "+sendMessage);
