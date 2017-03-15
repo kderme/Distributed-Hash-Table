@@ -49,7 +49,7 @@ public class Console {
 	}
 	 
 	public void prints(String s){
-		out.println(s);
+		//out.println(s);
 		if(writeToFile){
 			outFile.println(s);
 		}

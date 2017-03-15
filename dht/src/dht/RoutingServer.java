@@ -23,10 +23,10 @@ public class RoutingServer extends Thread{
 	protected int myPort,onePort;
 	protected Server server=null;
 	protected Console console;
-	
+	protected int leave_count=0;
 	protected int myId;
 	protected String myShaId;
-	
+	protected boolean check_interrupted=false;
 	protected Socket socketOne, socketNext=null;
 	protected PrintWriter outNext=null;
 
@@ -50,8 +50,8 @@ public class RoutingServer extends Thread{
 		this.myPort=myPort;
 		this.oneIp=oneIp;
 		this.onePort=onePort;
-//		this.console=new Console(myPort+"","/home/kostas/cources/distr/out/"+myPort);
-		this.console=new Console(myPort+"");
+		this.console=new Console(myPort+"","D:\\output"+myPort+".txt");
+		//this.console=new Console("D:\\output"+myPort+".txt");
 	}
 
 	/*
@@ -100,7 +100,7 @@ public class RoutingServer extends Thread{
 	}
 
 	protected void initServer() {
-		this.server=new Server(false,start,end);
+		this.server=new Server(false,start,end,console);
 	}
 
 	protected void takeAdditionalFromOne(String[] spl) {}
@@ -128,14 +128,11 @@ public class RoutingServer extends Thread{
 	        // listen for incoming connections
 	        ssc.register( selector, SelectionKey.OP_ACCEPT );
 	        console.log("Listening on port "+myPort );
-
 	        while (true) {
 	          // See if we've had any activity -- either
 	          // an incoming connection, or incoming data on an
 	          // existing connection
-	          console.log("listening");
 	          int num = selector.select();
-
 	          // If we don't have any activity, loop around and wait
 	          // again
 	          if (num == 0) {
@@ -147,6 +144,8 @@ public class RoutingServer extends Thread{
 	          // that has been detected, and process them
 	          // one by one
 	          Set keys = selector.selectedKeys();
+	          boolean further=further_checking();
+	          if(further && check_interrupted && !keys.iterator().hasNext()) break;
 	          Iterator it = keys.iterator();
 	          while (it.hasNext()) {
 	            // Get a key representing one of bits of I/O
@@ -194,7 +193,6 @@ public class RoutingServer extends Thread{
 	                  Socket s = null;
 	                  try {
 	                    s = sc.socket();
-	                    console.log("Closing conection with"+s);
 	                    s.close();
 	                  } catch( IOException ie ) {
 	                    console.log( "Error closing socket "+s+": "+ie );
@@ -208,7 +206,7 @@ public class RoutingServer extends Thread{
 	                //TODO also close it if it`s not One or Prev. Find this out from processInput
 	                try {
 	                  sc.close();
-	                } catch( IOException ie2 ) { console.log( ie2 ); }
+	                } catch( IOException ie2 ) { console.log(ie2 ); }
 
 	                console.log( "Closed "+sc );
 	              }
@@ -220,8 +218,10 @@ public class RoutingServer extends Thread{
 	          keys.clear();
 	        }
 	      } catch( IOException ie ) {
+	    	  System.out.println("Exception happened");
 	        System.err.println( ie );
 	      }
+	    System.out.println("There "+leave_count);
 	    }
 
 	  private boolean processInput( SocketChannel sc ) throws IOException {
@@ -232,7 +232,9 @@ public class RoutingServer extends Thread{
 		    	//At every loop we add input in list ls and then we concat
 			    	buffer.clear();
 			    	int read=sc.read( buffer );
+	console.log("position="+buffer.position()+" limit="+buffer.limit());
 			    	buffer.flip();
+	console.log("position="+buffer.position()+" limit="+buffer.limit());
 		    	if (!sc.isConnected() || read==-1) {
 				      return false;
 		    	}
@@ -266,7 +268,7 @@ public class RoutingServer extends Thread{
 		     }
 		    
 		    String newMessage=sb.toString();
-		    newMessage=newMessage.split(Character.valueOf((char)10).toString())[0];
+		    newMessage=newMessage.split(Character.valueOf((char)13).toString())[0];
 		    processMessage(newMessage);
 		    
 		   // sc.write( buffer );
@@ -276,7 +278,8 @@ public class RoutingServer extends Thread{
 
 
 	protected void processMessage(String newMessage){
-		console.log("Received Message:" +newMessage);
+		console.logEntry();
+		console.log("newMessage:" +newMessage);
 		if(isItaBasicMessage(newMessage))
 			;
 		else if (isItAnotherMessage(newMessage))
@@ -286,9 +289,10 @@ public class RoutingServer extends Thread{
 	}
 	
 	protected boolean isItaBasicMessage(String newMessage){
-		if(newMessage.startsWith("LEAVE")){
+		if(newMessage.startsWith("Leave")){
 			depart(newMessage);
 		}
+		
 		else if (newMessage.startsWith("ANSWER")){
 			//	Answer<answer>
 			String [] spl=newMessage.split("-",3);
@@ -296,19 +300,25 @@ public class RoutingServer extends Thread{
 			SocketChannel sc=ht.get(currentClid);
 			if (newMessage.startsWith("ANSWER*"))
 				answerStar(currentClid,spl[2],sc);
-			else
+			else{
+				console.log("For user id: "+currentClid+" the answer is: "+spl[2]);
 				sendClient(sc,spl[2]);
+			}
 		}
+
 		else if(newMessage.startsWith("NEWNEXT-")){
 			//  NEWNEXT-ipNext:portNext
 			connectWithNext(newMessage.split("-")[1]);
 		}
 		else if(newMessage.startsWith("BULK-")){
 			String answer;
-			if(newMessage.split("-").length>1)answer=server.action(newMessage);
+			if(newMessage.split("-").length>1) answer=server.action(newMessage);
 			else answer="OK";
 			if(!answer.equals("OK"))
-				depart("LeaveForced");
+				{
+					console.log("OOPS, answer is: "+answer);
+					depart("LeaveForced");
+				}
 		}
 		else
 				return false;
@@ -325,21 +335,25 @@ public class RoutingServer extends Thread{
 			StringBuilder sb= new StringBuilder();
 
 		    for(String tempString:data.get(ClientId)){
-		    	if(tempString!=null && !tempString.equals("null")){
+		    	if(tempString!=null && !tempString.equals("null") && tempString.length()>0){
 		    		sb.append(tempString);  
 		    		sb.append("_");
 		    	}
-		     }   
+		     }
+		    
 		    String reply=sb.toString();
-		    if(reply!=null && !reply.equals("null")) reply=reply.substring(0,reply.length()-1);
+		    if(reply!=null && !reply.equals("null") && reply.length()>0) reply=reply.substring(0,reply.length()-1);
 		    console.log("For user id: "+ClientId+" the answer is: "+reply);
-		    //sendClient(sc,reply);
+		    sendClient(sc,reply);
 		}
+		// TODO Auto-generated method stub
+		
 	}
 
 	private void sendClient(SocketChannel sc, String string) {
+		console.logEntry();
 		console.log("reply for client:"+string);
-		string +="\n";
+		string+="\n";
 		byte [] bs=string.getBytes();
 		ByteBuffer sendBack = ByteBuffer.wrap(bs);
 console.log("position="+sendBack.position()+" limit="+sendBack.limit());
@@ -364,6 +378,7 @@ console.log("position="+sendBack.position()+" limit="+sendBack.limit());
 	} catch (IOException e) {		
 		e.printStackTrace();
 	}
+	console.logExit();
 	}
 
 	protected boolean isItAnotherMessage(String newMessage){
@@ -385,6 +400,7 @@ console.log("position="+sendBack.position()+" limit="+sendBack.limit());
 		}
 		else if(newMessage.startsWith("NEWLOW2-")){
 			//New Range due to new Node in network
+			leave_count++;
 			String[] spl=newMessage.split("-");
 			if(spl.length==3){
 				// this means range become smaller (new came) so let`s send data at prev (=new)
@@ -439,8 +455,14 @@ console.log("position="+sendBack.position()+" limit="+sendBack.limit());
 					sendMessage=sendMessage+",1";
 					this.numberOfNodes.put(Integer.valueOf(sendBack[1]),new Integer(0));
 					console.log("Sending to next node: "+sendMessage);
-					if (outNext!=null)
-						outNext.println(sendMessage);
+					if(outNext!=null )outNext.println(sendMessage);
+					else
+					{
+						String answer=server.action(newMessage);
+						String token="ANSWER*";
+						this.numberOfNodes.put(Integer.valueOf(sendBack[1]),new Integer(1));
+						sendMessage(sendBack[0], token+"-"+sendBack[1]+"-"+answer);
+					}
 				}
 				else
 				{
@@ -483,15 +505,19 @@ console.log("position="+sendBack.position()+" limit="+sendBack.limit());
 		console.log("Told to connect to: "+next[0]+":"+next[1]);				
 		//close existing connection (if exists)
 		if(outNext!=null)
+		{
 			outNext.close();
+			outNext=null;
+		}
 		if(socketNext!=null)
-			try {
-				socketNext.close();
+			try{
+			socketNext.close();
+			socketNext=null;
 			} catch (IOException e1) {
-				console.log("");
-				// TODO Auto-generated catch block
-				e1.printStackTrace();
-			}
+                console.log("");
+                // TODO Auto-generated catch block
+                e1.printStackTrace();
+				}
 		//open connection with next
 		//**********************************
 		if(iPort.equals(myIp+":"+myPort)) 
@@ -502,36 +528,38 @@ console.log("position="+sendBack.position()+" limit="+sendBack.limit());
 		}
 		console.log("Port String has "+next[1].length()+" characters");
 		//***********************************
-		console.log(next[0]); 
-		console.log(next[1]);
-		console.log("I`m not leaving until I connect!");
-		while(true){
-			try {
-			socketNext = new Socket(next[0],Integer.parseInt(next[1]));
-			outNext = new PrintWriter(socketNext.getOutputStream(), true);
-		
-			} catch (IOException e) {
-				console.log("nop");
-				continue;
-			}
-			break;
-		}
+		console.log(next[0]);
+        console.log(next[1]);
+        console.log("I`m not leaving until I connect!");
+        while(true){
+                try {
+                socketNext = new Socket(next[0],Integer.parseInt(next[1]));
+                outNext = new PrintWriter(socketNext.getOutputStream(), true);
+
+                } catch (IOException e) {
+                        console.log("nop");
+                        continue;
+                }
+                break;
+        }
 	}
 	protected void depart(String leaveMessage){
+		leave_count=0;
 		console.logEntry();
 		String message="Leaving-"+this.myShaId;
-		boolean success=sendMessage(oneIp,onePort,message);
-		if(!(success || leaveMessage.startsWith("LeaveForced"))){
+		if(!leaveMessage.startsWith("LeaveForced") && sendMessageWithReply(oneIp,onePort,message).equals("Removed")){
 			console.logExit();
+			check_interrupted=true;
 			return;
 		}
 		//ready to leave
-		String leave="Leaving";
+		String leave="LEAVE-"+myShaId;
 		String myData=server.action(leave);
 		console.log("Sending to next node: "+myData);
 		this.outNext.println(myData);
-		System.exit(0);
+		check_interrupted=true;
 	}
+	protected boolean further_checking(){return true;}
 	
 	protected void updateStart(String start) {
 		this.start=start;
@@ -541,8 +569,8 @@ console.log("position="+sendBack.position()+" limit="+sendBack.limit());
 	protected boolean isMine(String key) {
 		if(key.equals("*")) return true;
 		if (compareHash(start,end)>=0)
-			return compareHash(start,key)<0 || compareHash(key,end)<=0 ;
-		return compareHash(start,key)<0  && compareHash(key,end)<=0 ;
+			return compareHash(start,key)<=0 || compareHash(key,end)<0 ;
+		return compareHash(start,key)<=0  && compareHash(key,end)<0 ;
 	}
 	
 	public static int compareHash(String h1,String h2){
@@ -555,18 +583,38 @@ console.log("position="+sendBack.position()+" limit="+sendBack.limit());
 	}
 
 	protected boolean sendMessage(String ip, int port, String message){
-		console.log("Sending message: "+message+"to: "+ip+":"+port);
-		while(true){
-			try{
-				Socket socket = new Socket(ip,port);
-				PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-				out.println(message);
-				socket.close();
-				return true;
-			} catch(IOException e){
-				console.log("can`t send to "+port);
-				continue;
-			}
+        console.log("Sending message: "+message+"to: "+ip+":"+port);
+        while(true){
+                try{
+                        Socket socket = new Socket(ip,port);
+                        PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+                        out.println(message);
+                        socket.close();
+                        return true;
+                } catch(IOException e){
+                        console.log("can`t send to "+port);
+                        continue;
+                }
+        }
+	}
+
+	
+	protected String sendMessageWithReply(String ip, int port, String message){
+		console.log("Sending message: "+message);
+		console.log("to: "+ip+":"+port);
+		try{
+			Socket socket = new Socket(ip,port);
+			PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+			BufferedReader inOne= new BufferedReader(
+	                new InputStreamReader(socket.getInputStream()));
+			out.println(message);
+			String reply=inOne.readLine();
+			console.log("This is the reply: "+reply);
+			socket.close();
+			return reply;
+		} catch(IOException e){
+			e.printStackTrace();
+			return "";
 		}
 	}
 

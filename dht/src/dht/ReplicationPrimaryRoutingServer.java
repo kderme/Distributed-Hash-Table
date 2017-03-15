@@ -21,6 +21,7 @@ public class ReplicationPrimaryRoutingServer extends ReplicationRoutingServer {
 	private ServerSocket SrvSocket;
 	private Socket CltSocket;
 	protected boolean isprimaryRunning;
+	protected Console console;
 	
 	public ReplicationPrimaryRoutingServer(String myIp,int myPort,String oneIp, int onePort, int replicationNumber, int replicationMethod)
 	{
@@ -29,6 +30,8 @@ public class ReplicationPrimaryRoutingServer extends ReplicationRoutingServer {
 		networkIds=new TreeMap<String,String>();
 		lastIdGiven=0;
 		isprimaryRunning=false;
+		//this.console=new Console(onePort);
+		this.console=new Console(onePort+"","D:\\output"+onePort+".txt");
 		/*lastIdGiven=1;
 		myId=lastIdGiven;
 		myShaId=hash(myId);
@@ -51,15 +54,15 @@ public class ReplicationPrimaryRoutingServer extends ReplicationRoutingServer {
 	protected void sendMessage(String Ip, String port, String message, String errorMessage)
 	{
 		console.logEntry();
-		System.out.println("[One]: Sending message: "+message);
-		System.out.println("to: "+Ip+":"+port);
+		console.log("[One]: Sending message: "+message);
+		console.log("to: "+Ip+":"+port);
 		try{	
 			CltSocket=new Socket(Ip,Integer.parseInt(port));
 			new PrintWriter(CltSocket.getOutputStream(), true).println(message);
 			CltSocket.close();
 		} catch (IOException e) {
 			e.printStackTrace();
-			System.out.println(errorMessage);
+			console.log(errorMessage);
 			System.exit(1);
 		}
 		console.logExit();
@@ -70,7 +73,7 @@ public class ReplicationPrimaryRoutingServer extends ReplicationRoutingServer {
 	{
 		console.logEntry(); 
 		try {
-			   System.out.println("Connecting to "+this.oneIp+" to port "+this.onePort);
+			   console.log("Connecting to "+this.oneIp+" to port "+this.onePort);
 			   SrvSocket=new ServerSocket(this.onePort,5,InetAddress.getByName(this.oneIp));
 			   while(true){
 				  
@@ -78,10 +81,10 @@ public class ReplicationPrimaryRoutingServer extends ReplicationRoutingServer {
 					   InputStreamReader inputStreamReader=new InputStreamReader(socket.getInputStream());
 					   BufferedReader bufferedReader =new BufferedReader(inputStreamReader);
 					   String message=bufferedReader.readLine();
-					   System.out.println("Got this: "+message);
+					   console.log("Got this: "+message);
 					   
 					   String reply=examineMessage(message);
-					   System.out.println("Answering with this: "+reply);
+					   console.log("Answering with this: "+reply);
 					   PrintStream PS=new PrintStream(socket.getOutputStream());
 					   PS.println(reply);
 					   
@@ -89,7 +92,7 @@ public class ReplicationPrimaryRoutingServer extends ReplicationRoutingServer {
 			   		
 		} catch (IOException e) {
 			e.printStackTrace();
-			System.out.println("Socket "+this.myPort+" Closed. Exiting...");
+			console.log("Socket "+this.myPort+" Closed. Exiting...");
 			return;
 		}
 		finally{
@@ -97,7 +100,7 @@ public class ReplicationPrimaryRoutingServer extends ReplicationRoutingServer {
 				SrvSocket.close();
 				console.logExit();
 			} catch (IOException e) {
-				System.out.println("Shouldnt close but closed");
+				console.log("Shouldnt close but closed");
 				e.printStackTrace();
 			}
 		}
@@ -138,7 +141,7 @@ public class ReplicationPrimaryRoutingServer extends ReplicationRoutingServer {
 			flag=true;
 		}
 		else numbefore=replicationNumber-1;
-		System.out.println(numbefore+"]!!!!!!!!!["+numafter);
+		console.log(numbefore+"]!!!!!!!!!["+numafter);
 		if(this.replicationNumber==replicationNumber)
 		{
 			if(flag)
@@ -222,7 +225,7 @@ public class ReplicationPrimaryRoutingServer extends ReplicationRoutingServer {
 		console.logEntry();
 		String result="";
 		int replicationNumber=this.replicationNumber;
-		if(replicationNumber<networkIds.size()) return "0";
+		if(replicationNumber>networkIds.size()) return "0";
 		Set<String> beforeSet=networkIds.headMap(leavingkey).keySet();
 		Set<String> afterSet=networkIds.tailMap(leavingkey).keySet();
 		Iterator<String> before=beforeSet.iterator();
@@ -245,7 +248,7 @@ public class ReplicationPrimaryRoutingServer extends ReplicationRoutingServer {
 		return result;
 	}
 	
-	private void distributeReplicas(String key)
+	private void distributeReplicas(String key, String destination)
 	{
 		console.logEntry();
 		if(replicationNumber>networkIds.size())	{
@@ -259,7 +262,6 @@ public class ReplicationPrimaryRoutingServer extends ReplicationRoutingServer {
 		int numbefore, numafter=0;
 		if(beforeSet.size()<replicationNumber) numafter=replicationNumber-1-beforeSet.size();
 		numbefore=replicationNumber-1-numafter;
-		String destination=networkIds.get(key);
 		String[] network=destination.split(":");
 		String replicalow="",replicahigh="";
 		if(numafter>0)
@@ -347,7 +349,7 @@ public class ReplicationPrimaryRoutingServer extends ReplicationRoutingServer {
 	protected String newNode(String message)//message is the ip:port
 	{
 		console.logEntry();
-		System.out.println("Replications are used");
+		console.log("Replications are used");
 		lastIdGiven++;
 		String shaId=hash(lastIdGiven);
 		String prev_key;
@@ -375,8 +377,9 @@ public class ReplicationPrimaryRoutingServer extends ReplicationRoutingServer {
 	{
 		console.logEntry();
 		if(!networkIds.containsKey(message)) return "Nonexistent";
+		String destination=networkIds.get(message);
 		networkIds.remove(message);
-		distributeReplicas(message);
+		distributeReplicas(message,destination);
 		String prev_key;
 		if (networkIds.headMap(message).isEmpty()) prev_key=networkIds.lastKey();
 		else prev_key=networkIds.headMap(message).lastKey();
@@ -398,7 +401,7 @@ public class ReplicationPrimaryRoutingServer extends ReplicationRoutingServer {
 		String[] split=message.split("-");
 		if(split[0].equals("HELLO"))
 		{
-			System.out.println("Entering here sending this: "+split[1]);
+			console.log("Entering here sending this: "+split[1]);
 			//***************************
 			if(networkIds.isEmpty())
 			{
@@ -411,7 +414,7 @@ public class ReplicationPrimaryRoutingServer extends ReplicationRoutingServer {
 			//****************************	
 				reply=newNode(split[1]);
 		}
-		else if(split[0].equals("BYEFROM"))
+		else if(split[0].equals("Leaving"))
 		{
 			reply=removeNode(split[1]);
 		}

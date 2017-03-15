@@ -1,5 +1,6 @@
 package dht;
 
+import java.sql.Timestamp;
 import java.util.Iterator;
 import java.util.Set;
 import java.util.SortedMap;
@@ -9,9 +10,9 @@ public class ReplicationServer extends Server{
 	private String replicaLeastHash;
 	SortedMap<String,String> replicaData = null;
 	SortedMap<String,String> WriteTime = null;
-	public ReplicationServer(boolean master,String least,String max, int replicas, String replicalow, String replicahigh, int replicaMethod)
+	public ReplicationServer(boolean master,String least,String max, int replicas, String replicalow, String replicahigh, int replicaMethod, Console routingConsole)
 	{
-		super(master,least,max);
+		super(master,least,max,routingConsole);
 		replicaLeastHash=replicalow;
 		replicaData=new TreeMap<String,String>();
 		WriteTime=new TreeMap<String,String>();
@@ -42,7 +43,7 @@ public class ReplicationServer extends Server{
 		if(RoutingServer.compareHash(low,leastHash)>=0)
 		{
 			String current_key,current_value;
-			System.out.println("one Margin low: "+leastHash+"\nMarginHigh: "+low);
+			console.log("one Margin low: "+leastHash+"\nMarginHigh: "+low);
 			Iterator<String> iter=data.subMap(leastHash,low).keySet().iterator();
 			if(iter.hasNext())
 			{
@@ -70,7 +71,7 @@ public class ReplicationServer extends Server{
 		else
 		{
 			String current_key,current_value;
-			System.out.println("two Margin low: "+leastHash+"\nMarginHigh: "+low);
+			console.log("two Margin low: "+leastHash+"\nMarginHigh: "+low);
 			Iterator<String> iter1=data.tailMap(leastHash).keySet().iterator();
 			Iterator<String> iter2=data.headMap(low).keySet().iterator();
 			if(iter1.hasNext())
@@ -142,6 +143,7 @@ public class ReplicationServer extends Server{
 				//*********************************
 				result=result+current_key+","+current_value;
 			}
+			iter=replicaData.subMap(low,leastHash).keySet().iterator();
 			while(iter.hasNext())
 			{
 				current_key=iter.next();
@@ -157,7 +159,7 @@ public class ReplicationServer extends Server{
 		else
 		{
 			Iterator<String> iter1=replicaData.tailMap(low).keySet().iterator();
-			Iterator<String> iter2=replicaData.headMap(leastHash).keySet().iterator();
+			boolean flag=replicaData.tailMap(low).isEmpty();
 			if(iter1.hasNext())
 			{
 				current_key=iter1.next();
@@ -180,7 +182,8 @@ public class ReplicationServer extends Server{
 				//*********************************
 				result=result+"_"+current_key+","+current_value;
 			}
-			if(iter2.hasNext() && replicaData.tailMap(low).isEmpty())
+			Iterator<String> iter2=replicaData.headMap(leastHash).keySet().iterator();
+			if(iter2.hasNext() && flag)
 			{
 				current_key=iter2.next();
 				current_value=replicaData.get(current_key);
@@ -269,7 +272,7 @@ public class ReplicationServer extends Server{
 		String marginLow=replicaLeastHash;
 		String marginHigh=lowReplica;
 		replicaLeastHash=lowReplica;
-		System.out.println("marginLow:"+marginLow+"\nmarginHigh:"+marginHigh);
+		console.log("marginLow:"+marginLow+"\nmarginHigh:"+marginHigh);
 		if(RoutingServer.compareHash(marginLow,marginHigh)<0)
 		{
 			Iterator<String> iter=replicaData.subMap(marginLow,marginHigh).keySet().iterator();
@@ -497,6 +500,7 @@ public class ReplicationServer extends Server{
 			String current_key,current_value;
 			Iterator<String> iter1=replicaData.tailMap(low).keySet().iterator();
 			Iterator<String> iter2=replicaData.headMap(high).keySet().iterator();
+			boolean flag=replicaData.tailMap(low).isEmpty();
 			if(iter1.hasNext())
 			{
 				current_key=iter1.next();
@@ -521,7 +525,7 @@ public class ReplicationServer extends Server{
 				//*********************************
 				replicaData.remove(current_key);
 			}
-			if(iter2.hasNext() && replicaData.tailMap(low).isEmpty())
+			if(iter2.hasNext() && flag)
 			{
 				current_key=iter2.next();
 				current_value=replicaData.get(current_key);
@@ -572,7 +576,7 @@ public class ReplicationServer extends Server{
 				else result=newData(split[1]);
 			}
 			else if (split[0].equals("NEWREPLICALOW")) result="UPDATEREPLICA-"+removeReplicas(split[1],split[2]);
-			else if (split[0].equals("LEAVING")) result="BULK-"+sendData();
+			else if (split[0].equals("LEAVE")) result="BULK-"+sendData();
 			else if (split[0].equals("SENDALLDATA")) result="ADDREPLICA-"+sendAllData(split[1],split[2]);
 			else if (split[0].equals("SENDREPLICA")) result="UPDATEREPLICA-"+split[1]+"-"+split[3]+"-"+sendReplica(split[1],split[2]);
 			else if (split[0].equals("SENDDATA")) result="ADDREPLICA-"+split[1]+"-"+split[2]+"-"+sendData();
@@ -581,7 +585,7 @@ public class ReplicationServer extends Server{
 				else result=addReplica(split[1],split[3]);
 			}
 			else if (split[0].equals("UPDATEREPLICA")) {
-				if(split.length==3) result=updateReplica(split[1],"");
+				if(split.length<=3) result=updateReplica(split[1],"");
 				else result=updateReplica(split[1],split[3]);
 			}
 			else result="Error";
@@ -594,21 +598,18 @@ public class ReplicationServer extends Server{
 	{
 		//*********************************
 		console.logEntry();
+		Timestamp timestamp=new Timestamp(System.currentTimeMillis());
 		String current_time=WriteTime.get(key);
-		int writing_time;
-		int time;
+		long writing_time;
+		long time;
 		if(value.split("%").length>1){
-			writing_time=Integer.valueOf(value.split("%")[1]);
+			writing_time=Long.parseLong(value.split("%")[1]);
 			value=value.split("%")[0];
 		}
-		else if (current_time==null) writing_time=0;
-		else
-		{
-			writing_time=Integer.valueOf(current_time)+1;
-		}
+		else writing_time=timestamp.getTime();
 		if(current_time==null) time=0;
-		else time=Integer.valueOf(current_time);
-		if(time>writing_time) return "NotDone";
+		else time=Long.valueOf(current_time);
+		if(time>writing_time) return "NotDone%"+writing_time;
 		WriteTime.put(key,""+writing_time);
 		//*********************************
 		if(isReplicaMaster(key))
@@ -620,18 +621,30 @@ public class ReplicationServer extends Server{
 			replicaData.put(key,value);
 		}
 		console.logExit();
-		return "Done";
+		return "Done%"+writing_time;
 	}
 	
 	public String delete (String key)
 	{
 		console.logEntry();
+		Timestamp timestamp=new Timestamp(System.currentTimeMillis());
+		String current_time=WriteTime.get(key);
+		long writing_time;
+		long existing_time;
+		if(key.split("%").length>1){
+			writing_time=Long.parseLong(key.split("%")[1]);
+			key=key.split("%")[0];
+		}
+		else writing_time=timestamp.getTime();
+		if(current_time==null) existing_time=0;
+		else existing_time=Long.valueOf(current_time);
+		if(existing_time>writing_time) return "NotDone%"+writing_time;
+		WriteTime.put(key,""+writing_time);
 		if(data.containsKey(key))
 		{
 			String value=data.remove(key);
 			//**************************
-			String time=WriteTime.remove(key);
-			if (time!=null) value=value+"%"+time;
+			value=value+"%"+writing_time;
 			//**************************
 			console.logExit();
 			return value;
@@ -640,13 +653,12 @@ public class ReplicationServer extends Server{
 		{
 			String value=replicaData.remove(key);
 			//**************************
-			String time=WriteTime.remove(key);
-			if (time!=null) value=value+"%"+time;
+			value=value+"%"+writing_time;
 			//**************************
 			console.logExit();
 			return value;
 		}
-		else return null;
+		else return "NotFound%"+writing_time;
 	}
 	
 	public String query(String key)

@@ -15,23 +15,23 @@ import java.util.Scanner;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class Terminal {
-	public int port; 
+	public int onePort;
 	PrintStream out = System.out;
 	private String [] cmds=
 {"help", "exit","start", "leave", "addnode", "insert","query", "delete","benchmark"};
 	  
     private String [] options=
-{"(for this message)", "","<port> <k> 0|1|2", "<port>", "<port>", "<key> <value> <port>",
-     "<key> <port>", "<key> <port>","1|2|3"};
+{"(for this message)", "","<port> <k> 0|1 <onePort>", "<port>", "<port>", "<key> <value> <port>",
+     "<key> <port>", "<key> <port>","0|1|2"};
     
     public int k=1;
     public int rep=0;
     
-    private String inputDirPath="input/";
-	private String [] files={"insert.txt","query.txt","request.txt"};
+    private String inputDirPath="D:\\";
+	private String [] files={"insert.txt","query.txt","requests.txt"};
 	private String [] type={"insert,", "query,", ""};
     
-	private ArrayList<Integer> ports=new ArrayList<Integer>(10);
+	private ArrayList<Integer> ports=new ArrayList<Integer>();
 	
 	private void start() {
 		Scanner sc=new Scanner(System.in);
@@ -68,28 +68,30 @@ public class Terminal {
 			if (spl.length>2){
 				k=Integer.parseInt(spl[2]);
 				rep=Integer.parseInt(spl[3]);
+				onePort=Integer.parseInt(spl[4]);
 			}
-			if(k<1 || !(rep==0 || rep==1 || rep==2) || (rep==0 && k!=1)){
+			if(k<1 || !(rep==0 || rep==1) || (rep!=0 && k==1)){
 				throw new Throwable();
 			}
 			RoutingServer prs;
 			if(rep==0)
-prs= new PrimaryRoutingServer("127.0.0.1",1111,"127.0.0.1",port);
+prs= new PrimaryRoutingServer("127.0.0.1",port,"127.0.0.1",onePort);
 			else
-prs=new ReplicationPrimaryRoutingServer("127.0.0.1",1111,"127.0.0.1",port,k,rep);
+prs=new ReplicationPrimaryRoutingServer("127.0.0.1",port,"127.0.0.1",onePort,k,rep);
 			prs.start();
 			new Thread(prs).start();
-			ports.add(1111);
+			ports.add(port);
 		}
 		else if(spl[0].equals("leave")){
 			simpleSend("Leave",Integer.parseInt(spl[1]));
+			ports.remove(ports.indexOf(Integer.parseInt(spl[1])));
 		}
 		else if(spl[0].equals("addnode")){
 			RoutingServer rs;
 			if(rep==0)
-rs= new RoutingServer("127.0.0.1",Integer.parseInt(spl[1]),"127.0.0.1",4000);
+rs= new RoutingServer("127.0.0.1",Integer.parseInt(spl[1]),"127.0.0.1",onePort);
 			else
-rs=new ReplicationRoutingServer("127.0.0.1",Integer.parseInt(spl[1]),"127.0.0.1",4000,k,rep);
+rs=new ReplicationRoutingServer("127.0.0.1",Integer.parseInt(spl[1]),"127.0.0.1",onePort,k,rep);
 			rs.start();
 			ports.add(Integer.parseInt(spl[1]));
 		}
@@ -128,12 +130,12 @@ rs=new ReplicationRoutingServer("127.0.0.1",Integer.parseInt(spl[1]),"127.0.0.1"
 		switch(test){ 
 		case 0: lines[i]=ss[0]+",insert,"+ss[1];
 			break;
-		case 1: lines[i]=ss[0]+",querry";
+		case 1: lines[i]=ss[0]+",query";
 			break;
 		case 2: 
 			lines[i]=ss[1]+","+ss[0];
 			if(ss.length==3)
-				lines[i]+=ss[2];
+				lines[i]+=","+ss[2];
 			break;
 		}
 		}
@@ -161,6 +163,12 @@ rs=new ReplicationRoutingServer("127.0.0.1",Integer.parseInt(spl[1]),"127.0.0.1"
 			String reply=br[randoms[i]].readLine();
 			out.println("->"+lines[i]);
 			out.println("->"+reply);
+			/*try {
+				Thread.sleep(1);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}*/
 		}
 
 		

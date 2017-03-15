@@ -11,13 +11,13 @@ public class Server {
 	protected String leastHash;
 	protected String maxHash;
 	protected Console console;
-	public Server(boolean master,String least,String max)
+	public Server(boolean master,String least,String max, Console routingConsole)
 	{
 		data=new TreeMap<String,String>();
 		isMaster=master;
 		leastHash=least;
 		maxHash=max;
-		console= new Console();
+		console= routingConsole;
 	}
 	public String hashString(String value)
 	{

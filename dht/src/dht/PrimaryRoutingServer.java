@@ -18,7 +18,7 @@ public class PrimaryRoutingServer extends RoutingServer {
 	private ServerSocket SrvSocket;
 	private Socket CltSocket;
 	protected boolean isprimaryRunning;
-	private Console console;
+	protected Console console;
 	
 	public PrimaryRoutingServer(String myIp,int myPort,String oneIp,int onePort)
 	{
@@ -30,7 +30,8 @@ public class PrimaryRoutingServer extends RoutingServer {
 		//networkIds.put(myShaId,myIp+":"+myPort);
 		lastIdGiven=0;
 		isprimaryRunning=false;
-		this.console=new Console("0000");
+		//this.console=new Console(onePort);
+		this.console=new Console(onePort+"","D:\\output"+onePort+".txt");
 	}
 	
 	public void run(){
@@ -46,6 +47,7 @@ public class PrimaryRoutingServer extends RoutingServer {
 	
 	protected void sendMessage(String Ip, String port, String message, String errorMessage)
 	{
+		console.logEntry();
 		console.log("Sending message: "+message);
 		console.log("to: "+Ip+":"+port);
 		try{	
@@ -192,6 +194,7 @@ public class PrimaryRoutingServer extends RoutingServer {
 		if(networkIds.tailMap(message).isEmpty()) next_key=networkIds.firstKey();
 		else next_key=networkIds.tailMap(message).firstKey();
 		String curr_value=networkIds.get(next_key);
+		System.out.println("Connect "+prev_value+" to "+curr_value);
 		updateNext(prev_value,curr_value);
 		mergeRanges(prev_key,remove_location,next_key);
 		console.logExit();
@@ -218,7 +221,7 @@ public class PrimaryRoutingServer extends RoutingServer {
 			//****************************	
 				reply=newNode(split[1]);
 		}
-		else if(split[0].equals("BYEFROM"))
+		else if(split[0].equals("Leaving"))
 		{
 			reply=removeNode(split[1]);
 		}
