@@ -9,6 +9,7 @@ import java.net.Socket;
 import java.net.UnknownHostException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
@@ -121,6 +122,8 @@ rs=new ReplicationRoutingServer("127.0.0.1",Integer.parseInt(spl[1]),"127.0.0.1"
 	
 	private void benchmark(String[] spl) throws IOException {
 		int test=Integer.parseInt(spl[1]);
+		Timestamp timestamp = new Timestamp(System.currentTimeMillis());
+		long starting_time=timestamp.getTime();
 		List<String> list = Files.readAllLines(Paths.get(inputDirPath + files[test]));
 		String [] lines = list.toArray(new String[list.size()]);
 		for(int i=0; i<lines.length; i++){
@@ -170,8 +173,9 @@ rs=new ReplicationRoutingServer("127.0.0.1",Integer.parseInt(spl[1]),"127.0.0.1"
 				e.printStackTrace();
 			}*/
 		}
-
-		
+		timestamp = new Timestamp(System.currentTimeMillis());
+		starting_time=timestamp.getTime()-starting_time;
+		out.println("Run time = "+starting_time+" milliseconds");
 	}
 
 	private void simpleSend(String mess, int port) {

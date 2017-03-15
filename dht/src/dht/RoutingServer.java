@@ -268,7 +268,8 @@ public class RoutingServer extends Thread{
 		     }
 		    
 		    String newMessage=sb.toString();
-		    newMessage=newMessage.split(Character.valueOf((char)13).toString())[0];
+		    if(!System.getProperty("os.name").equalsIgnoreCase("Linux")) newMessage=newMessage.split(Character.valueOf((char)13).toString())[0];
+		    else newMessage=newMessage.split(Character.valueOf((char)10).toString())[0];
 		    processMessage(newMessage);
 		    
 		   // sc.write( buffer );

@@ -348,12 +348,10 @@ public class ReplicationRoutingServer extends RoutingServer{
 			String [] message=newMessage.split(",");
 			String key=message[0];	//TODO
 			boolean isHere=isHere(key);
-			if (!sendMessage.split("@")[1].split("/")[0].equals(myIp+":"+myPort)){
-				if(isHere) 
-				{
-					String answer=server.action(newMessage);
-					console.log("This one seems fine. Checking next with : "+sendMessage);
-				}
+			if (isHere) 
+			{
+				String answer=server.action(newMessage);
+				console.log("This one seems fine. Checking next with : "+sendMessage);
 				outNext.println("#ANSWER-"+sendMessage.split("@",3)[1].split("/")[1]+"-OK#"+sendMessage);	
 			}
 			else
@@ -450,9 +448,17 @@ public class ReplicationRoutingServer extends RoutingServer{
 			}
 			
 			//We haven`t found a # header and its here
+			boolean isMine=isMine(key);
+			if(!isMine){
+				console.log("Not master of data:"+newMessage);
+				outNext.println(sendMessage);
+				console.log("Sending to next: "+sendMessage);
+				return;
+			}
 			String answer=server.action(newMessage);
 			String [] sendBack=sendMessage.split("@")[1].split("/",2);
 			String token="ANSWER";
+			if(answer.split("%").length>1) sendMessage=sendMessage+"%"+answer.split("%")[1];
 			outNext.println("#"+token+"-"+sendBack[1]+"-"+answer+"#"+sendMessage);
 			sendMessage(sendBack[0],"ANSWER-"+sendBack[1]+"-OK");
 			return;
