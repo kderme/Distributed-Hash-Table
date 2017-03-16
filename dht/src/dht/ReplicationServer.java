@@ -1,6 +1,7 @@
 package dht;
 
 import java.sql.Timestamp;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Set;
 import java.util.SortedMap;
@@ -45,11 +46,12 @@ public class ReplicationServer extends Server{
 			String current_key,current_value;
 			console.log("one Margin low: "+leastHash+"\nMarginHigh: "+low);
 			Iterator<String> iter=data.subMap(leastHash,low).keySet().iterator();
+			ArrayList<String> temp=new ArrayList<String>();
 			if(iter.hasNext())
 			{
 				current_key=iter.next();
 				current_value=data.get(current_key);
-				data.remove(current_key);
+				temp.add(current_key);
 				replicaData.put(current_key,current_value);
 				//*********************************
 				current_value=current_value+"%"+WriteTime.get(current_key);
@@ -60,12 +62,18 @@ public class ReplicationServer extends Server{
 			{
 				current_key=iter.next();
 				current_value=data.get(current_key);
-				data.remove(current_key);
+				temp.add(current_key);
 				replicaData.put(current_key,current_value);
 				//*********************************
 				current_value=current_value+"%"+WriteTime.get(current_key);
 				//*********************************
 				result=result+"_"+current_key+","+current_value;
+			}
+			iter=temp.iterator();
+			while(iter.hasNext())
+			{
+				current_key=iter.next();
+				data.remove(current_key);
 			}
 		}
 		else
@@ -74,11 +82,12 @@ public class ReplicationServer extends Server{
 			console.log("two Margin low: "+leastHash+"\nMarginHigh: "+low);
 			Iterator<String> iter1=data.tailMap(leastHash).keySet().iterator();
 			Iterator<String> iter2=data.headMap(low).keySet().iterator();
+			ArrayList<String> temp=new ArrayList<String>();
 			if(iter1.hasNext())
 			{
 				current_key=iter1.next();
 				current_value=data.get(current_key);
-				data.remove(current_key);
+				temp.add(current_key);
 				replicaData.put(current_key,current_value);
 				//*********************************
 				current_value=current_value+"%"+WriteTime.get(current_key);
@@ -89,7 +98,7 @@ public class ReplicationServer extends Server{
 			{
 				current_key=iter1.next();
 				current_value=data.get(current_key);
-				data.remove(current_key);
+				temp.add(current_key);
 				replicaData.put(current_key,current_value);
 				//*********************************
 				current_value=current_value+"%"+WriteTime.get(current_key);
@@ -100,7 +109,7 @@ public class ReplicationServer extends Server{
 			{
 				current_key=iter2.next();
 				current_value=data.get(current_key);
-				data.remove(current_key);
+				temp.add(current_key);
 				replicaData.put(current_key,current_value);
 				//*********************************
 				current_value=current_value+"%"+WriteTime.get(current_key);
@@ -111,12 +120,18 @@ public class ReplicationServer extends Server{
 			{
 				current_key=iter2.next();
 				current_value=data.get(current_key);
-				data.remove(current_key);
+				temp.add(current_key);
 				replicaData.put(current_key,current_value);
 				//*********************************
 				current_value=current_value+"%"+WriteTime.get(current_key);
 				//*********************************
 				result=result+"_"+current_key+","+current_value;
+			}
+			iter1=temp.iterator();
+			while(iter1.hasNext())
+			{
+				current_key=iter1.next();
+				data.remove(current_key);
 			}
 		}
 		console.logExit();
@@ -129,6 +144,7 @@ public class ReplicationServer extends Server{
 		console.logEntry();
 		String result=low+"-";
 		String current_key,current_value;
+		ArrayList<String> temp=new ArrayList<String>();
 		if(RoutingServer.compareHash(low,leastHash)<=0)
 		{
 			Iterator<String> iter=replicaData.subMap(low,leastHash).keySet().iterator();
@@ -136,7 +152,7 @@ public class ReplicationServer extends Server{
 			{
 				current_key=iter.next();
 				current_value=replicaData.get(current_key);
-				replicaData.remove(current_key);
+				temp.add(current_key);
 				data.put(current_key,current_value);
 				//*********************************
 				current_value=current_value+"%"+WriteTime.get(current_key);
@@ -148,12 +164,18 @@ public class ReplicationServer extends Server{
 			{
 				current_key=iter.next();
 				current_value=replicaData.get(current_key);
-				replicaData.remove(current_key);
+				temp.add(current_key);
 				data.put(current_key,current_value);
 				//*********************************
 				current_value=current_value+"%"+WriteTime.get(current_key);
 				//*********************************
 				result=result+"_"+current_key+","+current_value;
+			}
+			iter=temp.iterator();
+			while(iter.hasNext())
+			{
+				current_key=iter.next();
+				replicaData.remove(current_key);
 			}
 		}
 		else
@@ -164,7 +186,7 @@ public class ReplicationServer extends Server{
 			{
 				current_key=iter1.next();
 				current_value=replicaData.get(current_key);
-				replicaData.remove(current_key);
+				temp.add(current_key);
 				data.put(current_key,current_value);
 				//*********************************
 				current_value=current_value+"%"+WriteTime.get(current_key);
@@ -175,7 +197,7 @@ public class ReplicationServer extends Server{
 			{
 				current_key=iter1.next();
 				current_value=replicaData.get(current_key);
-				replicaData.remove(current_key);
+				temp.add(current_key);
 				data.put(current_key,current_value);
 				//*********************************
 				current_value=current_value+"%"+WriteTime.get(current_key);
@@ -187,7 +209,7 @@ public class ReplicationServer extends Server{
 			{
 				current_key=iter2.next();
 				current_value=replicaData.get(current_key);
-				replicaData.remove(current_key);
+				temp.add(current_key);
 				data.put(current_key,current_value);
 				//*********************************
 				current_value=current_value+"%"+WriteTime.get(current_key);
@@ -198,12 +220,18 @@ public class ReplicationServer extends Server{
 			{
 				current_key=iter2.next();
 				current_value=replicaData.get(current_key);
-				replicaData.remove(current_key);
+				temp.add(current_key);
 				data.put(current_key,current_value);
 				//*********************************
 				current_value=current_value+"%"+WriteTime.get(current_key);
 				//*********************************
 				result=result+"_"+current_key+","+current_value;
+			}
+			iter1=temp.iterator();
+			while(iter1.hasNext())
+			{
+				current_key=iter1.next();
+				replicaData.remove(current_key);
 			}
 		}
 		leastHash=low;
@@ -268,6 +296,7 @@ public class ReplicationServer extends Server{
 	private String removeReplicas(String lowReplica, String destination)
 	{
 		console.logEntry();
+		ArrayList<String> temp=new ArrayList<String>();
 		String result=replicaLeastHash+"-"+destination+"-";
 		String marginLow=replicaLeastHash;
 		String marginHigh=lowReplica;
@@ -286,7 +315,7 @@ public class ReplicationServer extends Server{
 				result=result+"%"+current_time;
 				WriteTime.remove(key);
 				//*********************************
-				replicaData.remove(key);
+				temp.add(key);
 			}
 			while(iter.hasNext())
 			{
@@ -298,6 +327,12 @@ public class ReplicationServer extends Server{
 				result=result+"%"+current_time;
 				WriteTime.remove(key);
 				//*********************************
+				temp.add(key);
+			}
+			iter=temp.iterator();
+			while(iter.hasNext())
+			{
+				String key=iter.next();
 				replicaData.remove(key);
 			}
 		}
@@ -315,7 +350,7 @@ public class ReplicationServer extends Server{
 				result=result+"%"+current_time;
 				WriteTime.remove(key);
 				//*********************************
-				replicaData.remove(key);
+				temp.add(key);
 			}
 			while(iter1.hasNext())
 			{
@@ -327,7 +362,7 @@ public class ReplicationServer extends Server{
 				result=result+"%"+current_time;
 				WriteTime.remove(key);
 				//*********************************
-				replicaData.remove(key);
+				temp.add(key);
 			}
 			if(iter2.hasNext())
 			{
@@ -339,7 +374,7 @@ public class ReplicationServer extends Server{
 				result=result+"%"+current_time;
 				WriteTime.remove(key);
 				//*********************************
-				replicaData.remove(key);
+				temp.add(key);
 			}
 			while(iter2.hasNext())
 			{
@@ -351,6 +386,12 @@ public class ReplicationServer extends Server{
 				result=result+"%"+current_time;
 				WriteTime.remove(key);
 				//*********************************
+				temp.add(key);
+			}
+			iter1=temp.iterator();
+			while(iter1.hasNext())
+			{
+				String key=iter1.next();
 				replicaData.remove(key);
 			}
 		}
@@ -465,6 +506,7 @@ public class ReplicationServer extends Server{
 	private String sendReplica(String low, String high)
 	{
 		console.logEntry();
+		ArrayList<String> temp=new ArrayList<String>();
 		String result="";
 		if(RoutingServer.compareHash(low,high)<=0)
 		{
@@ -480,7 +522,7 @@ public class ReplicationServer extends Server{
 				result=result+"%"+current_time;
 				WriteTime.remove(current_key);
 				//*********************************
-				replicaData.remove(current_key);
+				temp.add(current_key);
 			}
 			while(iter.hasNext())
 			{
@@ -492,8 +534,15 @@ public class ReplicationServer extends Server{
 				result=result+"%"+current_time;
 				WriteTime.remove(current_key);
 				//*********************************
+				temp.add(current_key);
+			}
+			iter=temp.iterator();
+			while(iter.hasNext())
+			{
+				current_key=iter.next();
 				replicaData.remove(current_key);
 			}
+			
 		}
 		else
 		{
@@ -511,7 +560,7 @@ public class ReplicationServer extends Server{
 				result=result+"%"+current_time;
 				WriteTime.remove(current_key);
 				//*********************************
-				replicaData.remove(current_key);
+				temp.add(current_key);
 			}
 			while(iter1.hasNext())
 			{
@@ -523,7 +572,7 @@ public class ReplicationServer extends Server{
 				result=result+"%"+current_time;
 				WriteTime.remove(current_key);
 				//*********************************
-				replicaData.remove(current_key);
+				temp.add(current_key);
 			}
 			if(iter2.hasNext() && flag)
 			{
@@ -535,7 +584,7 @@ public class ReplicationServer extends Server{
 				result=result+"%"+current_time;
 				WriteTime.remove(current_key);
 				//*********************************
-				replicaData.remove(current_key);
+				temp.add(current_key);
 			}
 			while(iter2.hasNext())
 			{
@@ -547,6 +596,12 @@ public class ReplicationServer extends Server{
 				result=result+"%"+current_time;
 				WriteTime.remove(current_key);
 				//*********************************
+				temp.add(current_key);
+			}
+			iter1=temp.iterator();
+			while(iter1.hasNext())
+			{
+				current_key=iter1.next();
 				replicaData.remove(current_key);
 			}
 		}
