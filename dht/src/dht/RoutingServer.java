@@ -51,7 +51,7 @@ public class RoutingServer extends Thread{
 		this.myPort=myPort;
 		this.oneIp=oneIp;
 		this.onePort=onePort;
-		this.console=new Console(myPort+"",File.separator+myPort+".txt");
+		this.console=new Console(myPort+"","logs"+File.separator+myPort+".txt");
 		//this.console=new Console("D:\\output"+myPort+".txt");
 	}
 
@@ -222,7 +222,7 @@ public class RoutingServer extends Thread{
 	    	  System.out.println("Exception happened");
 	        System.err.println( ie );
 	      }
-	    System.out.println("There "+leave_count);
+	    //System.out.println("There "+leave_count);
 	    }
 
 	  private boolean processInput( SocketChannel sc ) throws IOException {
@@ -303,16 +303,16 @@ public class RoutingServer extends Thread{
 	}
 	
 	protected boolean isItaBasicMessage(String newMessage){
-		if(newMessage.startsWith("Leave")){
+		if(newMessage.startsWith("LEAVE")){
 			depart(newMessage);
 		}
-		if(newMessage.startsWith("PING")){
+		else if(newMessage.startsWith("PING")){
 			console.log("GOT PINGED");
 		}
-		if(newMessage.startsWith("PINGNEXT")){
+		else if(newMessage.startsWith("PINGNEXT")){
 			outNext.println("PING");
 		}
-		if(newMessage.startsWith("TRACEROUTE")){
+		else if(newMessage.startsWith("TRACEROUTE")){
 			String [] spl=newMessage.split("-",2);
 			int ttl=Integer.parseInt(spl[1]);
 			if(ttl>0)

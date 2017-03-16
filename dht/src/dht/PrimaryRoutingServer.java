@@ -195,7 +195,7 @@ public class PrimaryRoutingServer extends RoutingServer {
 		if(networkIds.tailMap(message).isEmpty()) next_key=networkIds.firstKey();
 		else next_key=networkIds.tailMap(message).firstKey();
 		String curr_value=networkIds.get(next_key);
-		System.out.println("Connect "+prev_value+" to "+curr_value);
+		//System.out.println("Connect "+prev_value+" to "+curr_value);
 		updateNext(prev_value,curr_value);
 		mergeRanges(prev_key,remove_location,next_key);
 		console.logExit();

@@ -181,7 +181,7 @@ rs=new ReplicationRoutingServer("127.0.0.1",Integer.parseInt(spl[1]),"127.0.0.1"
 		}
 		
 		for (int i=0; i<lines.length; i++){
-			out.println("&&&&& sending "+lines[i]+" to "+ports.get(randoms[i]));
+			//out.println("&&&&& sending "+lines[i]+" to "+ports.get(randoms[i]));
 			pw[randoms[i]].println(lines[i]);
 			String reply=br[randoms[i]].readLine();
 			out.println("->"+lines[i]);

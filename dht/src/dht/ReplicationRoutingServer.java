@@ -112,6 +112,8 @@ public class ReplicationRoutingServer extends RoutingServer{
 	}
 	
 	protected void query(String newMessage){
+	console.logEntry();
+	console.log(newMessage);
 	if(consistency==0)
 	{	
 		String sendMessage;
@@ -125,7 +127,7 @@ public class ReplicationRoutingServer extends RoutingServer{
 			String [] message=newMessage.split(",");
 			String key=message[0];	//TODO
 			boolean isHere=isHere(key);
-			if (!isHere){
+			if (!isHere || isMine(key)){
 				//first who doesn't find it sends back result of previous
 				console.log("Checked all Replicas. Final Answer: "+prevAnswer);
 				sendMessage(sendMessage.split("@")[1].split("/")[0], prevAnswer);
@@ -173,7 +175,7 @@ public class ReplicationRoutingServer extends RoutingServer{
 			String [] message=newMessage.split(",");
 			String key=message[0];	//TODO
 			boolean isHere=isHere(key);
-			if (isHere){
+			if (isHere && !isMine(key)){
 				String answer=server.action(newMessage);
 				console.log("This one seems fine. Checking next with : "+sendMessage);
 				outNext.println("#ANSWER-"+sendMessage.split("@",3)[1].split("/")[1]+"-OK#"+sendMessage);
@@ -308,7 +310,7 @@ public class ReplicationRoutingServer extends RoutingServer{
 			String [] message=newMessage.split(",");
 			String key=message[0];	//TODO
 			boolean isHere=isHere(key);
-			if (isHere) 
+			if (isHere && !isMine(key)) 
 			{
 				String answer=server.action(newMessage);
 				console.log("This one seems fine. Checking next with : "+sendMessage);
