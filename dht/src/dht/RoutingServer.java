@@ -268,9 +268,21 @@ public class RoutingServer extends Thread{
 		     }
 		    
 		    String newMessage=sb.toString();
-		    if(!System.getProperty("os.name").equalsIgnoreCase("Linux")) newMessage=newMessage.split(Character.valueOf((char)13).toString())[0];
-		    else newMessage=newMessage.split(Character.valueOf((char)10).toString())[0];
-		    processMessage(newMessage);
+		    String[] Messages;
+		    if(!System.getProperty("os.name").equalsIgnoreCase("Linux")) Messages=newMessage.split(Character.valueOf((char)13).toString()+Character.valueOf((char)10).toString());
+		    else Messages=newMessage.split(Character.valueOf((char)10).toString());
+		    int index=0;
+		    //System.out.println(Messages.length);
+		    while(index<Messages.length)
+		    {
+		    	//System.out.println(Messages[index]);
+		    	if(!(Messages[index].equals(Character.valueOf((char)10).toString()) || Messages[index].equals(Character.valueOf((char)13).toString())))
+		    		{
+		    			//System.out.println("YES");
+		    			processMessage(Messages[index]);
+		    		}
+		    	index++;
+		    }
 		    
 		   // sc.write( buffer );
 		    console.logExit();
