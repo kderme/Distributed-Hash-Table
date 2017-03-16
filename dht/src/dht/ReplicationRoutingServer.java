@@ -38,23 +38,7 @@ public class ReplicationRoutingServer extends RoutingServer{
 	protected void initServer() {
 		this.server=new ReplicationServer(false,start,end,k,startReplica,end,consistency,console);
 	}
-	
-	protected void processMessage(String newMessage){
-		console.logEntry();
-		console.log("newMessage:" +newMessage);
 		
-		if(isItaBasicMessage(newMessage))
-			return;	
-				
-		else if (isItAnotherMessage(newMessage))
-			return;
-				
-
-		else{
-			query(newMessage);
-		}
-	}
-	
 	protected boolean isItAnotherMessage(String newMessage){
 		if(newMessage.startsWith("NEWLOW-")){
 			//New Range due to new Node in network
@@ -114,31 +98,7 @@ public class ReplicationRoutingServer extends RoutingServer{
 		if (compareHash(startReplica,end)>=0)
 			return compareHash(startReplica,key)<=0 || compareHash(key,end)<0 ;
 		return compareHash(startReplica,key)<=0  && compareHash(key,end)<0 ;
-	}
-
-	protected boolean sendMessage(String ip, int port, String message){
-		console.log("["+myIp+":"+myPort+"] Sending message: "+message);
-		console.log("to: "+ip+":"+port);
-		try{
-			Socket socket = new Socket(ip,port);
-			PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-			out.println(message);
-			socket.close();
-			return true;
-		} catch(IOException e){
-			e.printStackTrace();
-			return false;
-		}
-	}
-
-	protected boolean sendMessage(String iPort,String message){
-		//---take routing info
-		String next []=iPort.split(":");
-		
-		return sendMessage(next[0],new Integer(next[1]),message);
-	}
-	
-	
+	}	
 	
 	public void main(String[] args)
 	{

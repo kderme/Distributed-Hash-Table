@@ -1,6 +1,7 @@
 package dht;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
@@ -19,16 +20,16 @@ public class Terminal {
 	public int onePort;
 	PrintStream out = System.out;
 	private String [] cmds=
-{"help", "exit","start", "leave", "addnode", "insert","query", "delete","benchmark"};
+{"help", "exit","start", "ports","leave", "addnode", "insert","query", "delete","benchmark"};
 	  
     private String [] options=
-{"(for this message)", "","<port> <k> 0|1 <onePort>", "<port>", "<port>", "<key> <value> <port>",
+{"(for this message)", "","<port> <k> 0|1 <onePort>", "","<port>", "<port>", "<key> <value> <port>",
      "<key> <port>", "<key> <port>","0|1|2"};
     
     public int k=1;
     public int rep=0;
     
-    private String inputDirPath="D:\\";
+    private String inputDirPath="inputs"+File.separator;
 	private String [] files={"insert.txt","query.txt","requests.txt"};
 	private String [] type={"insert,", "query,", ""};
     
@@ -60,7 +61,8 @@ public class Terminal {
 			System.exit(0);
 		}
 		else if(spl[0].equals("start")){
-			int port=4000;
+			int port=1111;
+			onePort=4000;
 			k=1;
 			rep=0;
 			if (spl.length>1){
@@ -84,7 +86,7 @@ prs=new ReplicationPrimaryRoutingServer("127.0.0.1",port,"127.0.0.1",onePort,k,r
 			ports.add(port);
 		}
 		else if(spl[0].equals("leave")){
-			simpleSend("Leave",Integer.parseInt(spl[1]));
+			simpleSend("LEAVE",Integer.parseInt(spl[1]));
 			ports.remove(ports.indexOf(Integer.parseInt(spl[1])));
 		}
 		else if(spl[0].equals("addnode")){
@@ -96,9 +98,26 @@ rs=new ReplicationRoutingServer("127.0.0.1",Integer.parseInt(spl[1]),"127.0.0.1"
 			rs.start();
 			ports.add(Integer.parseInt(spl[1]));
 		}
+		else if(spl[0].equals("addnodes")){
+			for (int i=1;i<spl.length;i++){
+				RoutingServer rs;
+				if(rep==0)
+	rs= new RoutingServer("127.0.0.1",Integer.parseInt(spl[i]),"127.0.0.1",onePort);
+				else
+	rs=new ReplicationRoutingServer("127.0.0.1",Integer.parseInt(spl[i]),"127.0.0.1",onePort,k,rep);
+				rs.start();
+				ports.add(Integer.parseInt(spl[i]));
+				
+				Thread.sleep(1000);
+			}
+		}
 		else if(spl[0].equals("insert")){
 			String query=spl[1]+",insert,"+spl[2];
 			send(query,Integer.parseInt(spl[3]));
+		}
+		else if(spl[0].equals("ports")){
+			for(int p:ports)
+				out.println(p);
 		}
 		else if(spl[0].equals("query")){
 			String query=spl[1]+",query";
@@ -162,6 +181,7 @@ rs=new ReplicationRoutingServer("127.0.0.1",Integer.parseInt(spl[1]),"127.0.0.1"
 		}
 		
 		for (int i=0; i<lines.length; i++){
+			out.println("&&&&& sending "+lines[i]+" to "+ports.get(randoms[i]));
 			pw[randoms[i]].println(lines[i]);
 			String reply=br[randoms[i]].readLine();
 			out.println("->"+lines[i]);
@@ -202,7 +222,14 @@ rs=new ReplicationRoutingServer("127.0.0.1",Integer.parseInt(spl[1]),"127.0.0.1"
 	                new InputStreamReader(CltSocket.getInputStream()));
 			String master =br.readLine();
 			Thread.sleep(1000);
-			System.out.println(master);
+			if (!master.contains("_"))
+				System.out.println(master);
+			else{
+                //      result of a query * with many answers
+				String [] spl=master.split("_");
+				for (String s:spl)
+					out.println(s);
+			}
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
 		} catch (IOException e) {

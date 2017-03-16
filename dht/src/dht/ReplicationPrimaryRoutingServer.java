@@ -1,6 +1,7 @@
 package dht;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
@@ -31,7 +32,7 @@ public class ReplicationPrimaryRoutingServer extends ReplicationRoutingServer {
 		lastIdGiven=0;
 		isprimaryRunning=false;
 		//this.console=new Console(onePort);
-		this.console=new Console(onePort+"","D:\\output"+onePort+".txt");
+		this.console=new Console(onePort+"","logs"+File.separator+myPort+".txt");
 		/*lastIdGiven=1;
 		myId=lastIdGiven;
 		myShaId=hash(myId);

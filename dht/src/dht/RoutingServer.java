@@ -1,5 +1,6 @@
 package dht;
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
@@ -50,7 +51,7 @@ public class RoutingServer extends Thread{
 		this.myPort=myPort;
 		this.oneIp=oneIp;
 		this.onePort=onePort;
-		this.console=new Console(myPort+"","D:\\output"+myPort+".txt");
+		this.console=new Console(myPort+"",File.separator+myPort+".txt");
 		//this.console=new Console("D:\\output"+myPort+".txt");
 	}
 
@@ -305,7 +306,18 @@ public class RoutingServer extends Thread{
 		if(newMessage.startsWith("Leave")){
 			depart(newMessage);
 		}
-		
+		if(newMessage.startsWith("PING")){
+			console.log("GOT PINGED");
+		}
+		if(newMessage.startsWith("PINGNEXT")){
+			outNext.println("PING");
+		}
+		if(newMessage.startsWith("TRACEROUTE")){
+			String [] spl=newMessage.split("-",2);
+			int ttl=Integer.parseInt(spl[1]);
+			if(ttl>0)
+				outNext.println("TRACEROUTE-"+(ttl-1));
+		}
 		else if (newMessage.startsWith("ANSWER")){
 			//	Answer<answer>
 			String [] spl=newMessage.split("-",3);
