@@ -11,7 +11,6 @@ public class EventualRoutingServer extends ReplicationRoutingServer{
 	
 	protected void query(String newMessage){
 		String sendMessage;
-		int n=0;
 		if(newMessage.startsWith("#")){
 			//writing
 			sendMessage=newMessage;
@@ -23,7 +22,7 @@ public class EventualRoutingServer extends ReplicationRoutingServer{
 			boolean isHere=isHere(key);
 			if (isHere) 
 			{
-				String answer=server.action(newMessage);
+				server.action(newMessage);
 				console.log("This one seems fine. Checking next with : "+sendMessage);
 				outNext.println("#ANSWER-"+sendMessage.split("@",3)[1].split("/")[1]+"-OK#"+sendMessage);	
 			}
@@ -114,7 +113,6 @@ public class EventualRoutingServer extends ReplicationRoutingServer{
 				//**********************************************
 				String answer=server.action(newMessage);
 				String [] sendBack=sendMessage.split("@")[1].split("/",2);
-				String token="ANSWER";
 				console.log("Owner of data. Sending answer:"+answer);
 				Utilities.sendMessage(sendBack[0],"ANSWER-"+sendBack[1]+"-"+answer,console);
 				return;

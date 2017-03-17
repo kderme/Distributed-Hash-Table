@@ -11,7 +11,6 @@ public class LinearizationRoutingServer extends ReplicationRoutingServer{
 	
 	protected void query(String newMessage){
 		String sendMessage;
-		int n=0;
 		if(newMessage.startsWith("##")){
 			//reading
 			String prevAnswer=newMessage.split("##",3)[1];
@@ -68,7 +67,7 @@ public class LinearizationRoutingServer extends ReplicationRoutingServer{
 			String key=message[0];	//TODO
 			boolean isHere=isHere(key);
 			if (isHere){
-				String answer=server.action(newMessage);
+				server.action(newMessage);
 				console.log("This one seems fine. Checking next with : "+sendMessage);
 				outNext.println("#ANSWER-"+sendMessage.split("@",3)[1].split("/")[1]+"-OK#"+sendMessage);
 				

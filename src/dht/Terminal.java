@@ -31,7 +31,6 @@ public class Terminal {
     
     private String inputDirPath="inputs"+File.separator;
 	private String [] files={"insert.txt","query.txt","requests.txt"};
-	private String [] type={"insert,", "query,", ""};
     
 	private ArrayList<Integer> ports=new ArrayList<Integer>();
 	
@@ -102,7 +101,6 @@ prs=new ReplicationPrimaryRoutingServer("127.0.0.1",onePort,k,rep);
 		}
 		else if(spl[0].equals("addnodes")){
 			for (int i=1;i<spl.length;i++){
-				RoutingServer rs;
 				int p=Integer.parseInt(spl[i]);
 				addNode(p);
 				ports.add(Integer.parseInt(spl[i]));

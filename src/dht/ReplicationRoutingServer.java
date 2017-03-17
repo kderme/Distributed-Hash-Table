@@ -1,23 +1,6 @@
 package dht;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
-import java.net.InetSocketAddress;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.net.UnknownHostException;
-import java.nio.ByteBuffer;
-import java.nio.channels.SelectionKey;
-import java.nio.channels.Selector;
-import java.nio.channels.ServerSocketChannel;
-import java.nio.channels.SocketChannel;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.Random;
-import java.util.Set;
 
-import org.apache.commons.codec.digest.DigestUtils;
+import java.util.Random;
 
 public class ReplicationRoutingServer extends RoutingServer{
 	protected int k=1;

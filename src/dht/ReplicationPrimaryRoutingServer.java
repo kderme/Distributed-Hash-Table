@@ -1,18 +1,7 @@
 package dht;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintStream;
-import java.io.PrintWriter;
-import java.net.InetAddress;
-import java.net.ServerSocket;
-import java.net.Socket;
 import java.util.Iterator;
 import java.util.Set;
-import java.util.SortedMap;
-import java.util.TreeMap;
 
 public class ReplicationPrimaryRoutingServer extends PrimaryRoutingServer {
 	private int replicationNumber;
