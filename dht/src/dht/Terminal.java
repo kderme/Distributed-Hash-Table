@@ -77,7 +77,7 @@ public class Terminal {
 				throw new Throwable();
 			}
 			RoutingServer prs;
-			if(rep==0)
+			if(k==1)
 prs= new PrimaryRoutingServer("127.0.0.1",port,"127.0.0.1",onePort);
 			else
 prs=new ReplicationPrimaryRoutingServer("127.0.0.1",port,"127.0.0.1",onePort,k,rep);
@@ -91,7 +91,7 @@ prs=new ReplicationPrimaryRoutingServer("127.0.0.1",port,"127.0.0.1",onePort,k,r
 		}
 		else if(spl[0].equals("addnode")){
 			RoutingServer rs;
-			if(rep==0)
+			if(k==1)
 rs= new RoutingServer("127.0.0.1",Integer.parseInt(spl[1]),"127.0.0.1",onePort);
 			else
 rs=new ReplicationRoutingServer("127.0.0.1",Integer.parseInt(spl[1]),"127.0.0.1",onePort,k,rep);
@@ -101,7 +101,7 @@ rs=new ReplicationRoutingServer("127.0.0.1",Integer.parseInt(spl[1]),"127.0.0.1"
 		else if(spl[0].equals("addnodes")){
 			for (int i=1;i<spl.length;i++){
 				RoutingServer rs;
-				if(rep==0)
+				if(k==1)
 	rs= new RoutingServer("127.0.0.1",Integer.parseInt(spl[i]),"127.0.0.1",onePort);
 				else
 	rs=new ReplicationRoutingServer("127.0.0.1",Integer.parseInt(spl[i]),"127.0.0.1",onePort,k,rep);
