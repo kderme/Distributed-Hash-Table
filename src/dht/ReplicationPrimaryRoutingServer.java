@@ -14,112 +14,21 @@ import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
-public class ReplicationPrimaryRoutingServer extends ReplicationRoutingServer {
-
+public class ReplicationPrimaryRoutingServer extends PrimaryRoutingServer {
 	private int replicationNumber;
-	protected int lastIdGiven;
-	protected SortedMap<String,String> networkIds=null;
-	private ServerSocket SrvSocket;
-	private Socket CltSocket;
-	protected boolean isprimaryRunning;
-	protected Console console;
 	
-	public ReplicationPrimaryRoutingServer(String myIp,int myPort,String oneIp, int onePort, int replicationNumber, int replicationMethod)
+	public ReplicationPrimaryRoutingServer(String myIp,int myPort, int replicationNumber, int replicationMethod)
 	{
-		super(myIp,myPort,oneIp,onePort,replicationNumber,replicationMethod);
+		super(myIp,myPort);
+		console.log("PrimaryRoutingServer");
 		this.replicationNumber=replicationNumber;
-		networkIds=new TreeMap<String,String>();
-		lastIdGiven=0;
-		isprimaryRunning=false;
-		//this.console=new Console(onePort);
-		this.console=new Console(onePort+"","logs"+File.separator+myPort+".txt");
-		/*lastIdGiven=1;
-		myId=lastIdGiven;
-		myShaId=hash(myId);
-		networkIds.put(myShaId,myIp+"-"+myPort);
-		receiveMessages();
-		*/
 	}
-	
-	public void run(){
-		if(!isprimaryRunning) {
-			isprimaryRunning=true;
-			receiveMessages();
-		}
-		else
-		{
-			super.run();
-		}
-	}
-	
-	protected void sendMessage(String Ip, String port, String message, String errorMessage)
-	{
-		console.logEntry();
-		console.log("[One]: Sending message: "+message);
-		console.log("to: "+Ip+":"+port);
-		try{	
-			CltSocket=new Socket(Ip,Integer.parseInt(port));
-			new PrintWriter(CltSocket.getOutputStream(), true).println(message);
-			CltSocket.close();
-		} catch (IOException e) {
-			e.printStackTrace();
-			console.log(errorMessage);
-			System.exit(1);
-		}
-		console.logExit();
-	}
-	
-	
-	protected void receiveMessages()
-	{
-		console.logEntry(); 
-		try {
-			   console.log("Connecting to "+this.oneIp+" to port "+this.onePort);
-			   SrvSocket=new ServerSocket(this.onePort,5,InetAddress.getByName(this.oneIp));
-			   while(true){
-				  
-					   Socket socket=SrvSocket.accept();
-					   InputStreamReader inputStreamReader=new InputStreamReader(socket.getInputStream());
-					   BufferedReader bufferedReader =new BufferedReader(inputStreamReader);
-					   String message=bufferedReader.readLine();
-					   console.log("Got this: "+message);
-					   
-					   String reply=examineMessage(message);
-					   console.log("Answering with this: "+reply);
-					   PrintStream PS=new PrintStream(socket.getOutputStream());
-					   PS.println(reply);
-					   
-			   }
-			   		
-		} catch (IOException e) {
-			e.printStackTrace();
-			console.log("Socket "+this.myPort+" Closed. Exiting...");
-			return;
-		}
-		finally{
-			try {
-				SrvSocket.close();
-				console.logExit();
-			} catch (IOException e) {
-				console.log("Shouldnt close but closed");
-				e.printStackTrace();
-			}
-		}
-	}
-	
 	
 	protected void updateNext(String receiver,String message)
 	{
 		console.logEntry();
-		/*
-		if(receiver.equals(myIp+":"+myPort))
-		{
-			connectWithNext(message);
-			return;
-		}
-		*/
 		String network[]=receiver.split(":");
-		sendMessage(network[0],network[1],"NEWNEXT-"+message,receiver+" didn't respond! Exit");
+		Utilities.sendMessage(network[0],network[1],"NEWNEXT-"+message,receiver+" didn't respond! Exit",console);
 		console.logExit();
 	}
 	
@@ -158,7 +67,7 @@ public class ReplicationPrimaryRoutingServer extends ReplicationRoutingServer {
 				else nexthash=cycleafter.next();
 				String destination=networkIds.get(nexthash);
 				String[] network=destination.split(":");
-				sendMessage(network[0],network[1],"NEWREPLICALOW-"+replicalow+"-"+dest,destination+" does not answer");
+				Utilities.sendMessage(network[0],network[1],"NEWREPLICALOW-"+replicalow+"-"+dest,destination+" does not answer",console);
 				numafter--;
 			}
 			if(!flag)
@@ -174,7 +83,7 @@ public class ReplicationPrimaryRoutingServer extends ReplicationRoutingServer {
 				else nexthash=cycleafter.next();
 				String destination=networkIds.get(nexthash);
 				String[] network=destination.split(":");
-				sendMessage(network[0],network[1],"NEWREPLICALOW-"+replicalow+"-"+dest,destination+" does not answer");
+				Utilities.sendMessage(network[0],network[1],"NEWREPLICALOW-"+replicalow+"-"+dest,destination+" does not answer",console);
 				numbefore--;
 			}
 		}
@@ -185,7 +94,7 @@ public class ReplicationPrimaryRoutingServer extends ReplicationRoutingServer {
 			else nexthash=before.next();
 			destination=networkIds.get(nexthash);
 			String[] network=destination.split(":");
-			sendMessage(network[0],network[1],"SENDALLDATA-"+nexthash+"-"+dest,destination+" does not answer"); //nodes are fewer than max replications
+			Utilities.sendMessage(network[0],network[1],"SENDALLDATA-"+nexthash+"-"+dest,destination+" does not answer",console); //nodes are fewer than max replications
 		}
 		console.logExit();
 		return lowvalue;
@@ -216,7 +125,7 @@ public class ReplicationPrimaryRoutingServer extends ReplicationRoutingServer {
 			}
 			String destination=networkIds.get(key);
 			String[] network=destination.split(":");
-			sendMessage(network[0],network[1],"NEWREPLICALOW-"+newhash,destination+" does not answer");
+			Utilities.sendMessage(network[0],network[1],"NEWREPLICALOW-"+newhash,destination+" does not answer",console);
 		}
 		console.logExit();
 	}
@@ -281,7 +190,7 @@ public class ReplicationPrimaryRoutingServer extends ReplicationRoutingServer {
 			String nexthash;
 			if(after.hasNext()) nexthash=after.next();
 			else nexthash=cycleafter.next();
-			sendMessage(network[0],network[1],"SENDREPLICA-"+replicalow+"-"+replicahigh+"-"+networkIds.get(nexthash),destination+" does not answer");
+			Utilities.sendMessage(network[0],network[1],"SENDREPLICA-"+replicalow+"-"+replicahigh+"-"+networkIds.get(nexthash),destination+" does not answer",console);
 			numafter--;
 		}
 		if(numbefore>0)
@@ -301,33 +210,11 @@ public class ReplicationPrimaryRoutingServer extends ReplicationRoutingServer {
 			String nexthash;
 			if(after.hasNext()) nexthash=after.next();
 			else nexthash=cycleafter.next();
-			sendMessage(network[0],network[1],"SENDREPLICA-"+replicalow+"-"+replicahigh+"-"+networkIds.get(nexthash),destination+" does not answer");
+			Utilities.sendMessage(network[0],network[1],"SENDREPLICA-"+replicalow+"-"+replicahigh+"-"+networkIds.get(nexthash),destination+" does not answer",console);
 			numbefore--;
 		}
 		console.logExit();
 		return;
-	}
-	
-	protected String divideRanges(String prev_key, String new_key, String next_key)
-	{
-		console.logEntry();
-		String result="";
-		String current_value;
-		String new_low, new_high;
-		new_low=prev_key;
-		new_high=new_key;
-		current_value=networkIds.get(next_key);
-		String[] network=current_value.split(":");
-		String next_low=new_key;
-		String new_pos=networkIds.get(new_key);
-		//if (next_key.equals(myShaId)) start=next_low;
-		//else
-		//{	
-			sendMessage(network[0],network[1],"NEWLOW-"+next_low+"-"+new_pos,"Id "+next_key+" didn't respond! Exit");
-		//}
-		result=new_low+"-"+new_high;
-		console.logExit();
-		return result;
 	}
 	
 	protected void mergeRanges(String prev_key, String leaving_key,String next_key)
@@ -342,7 +229,7 @@ public class ReplicationPrimaryRoutingServer extends ReplicationRoutingServer {
 		//if(next_key.equals(myShaId)) start=next_low;
 		//else
 		//{
-			sendMessage(network[0],network[1],"NEWLOW2-"+next_low+"-"+dest,"Id "+next_key+" didn't respond! Exit");
+		Utilities.sendMessage(network[0],network[1],"NEWLOW2-"+next_low+"-"+dest,"Id "+next_key+" didn't respond! Exit",console);
 		//}
 		console.logExit();
 	}
@@ -352,7 +239,7 @@ public class ReplicationPrimaryRoutingServer extends ReplicationRoutingServer {
 		console.logEntry();
 		console.log("Replications are used");
 		lastIdGiven++;
-		String shaId=hash(lastIdGiven);
+		String shaId=Utilities.hash(lastIdGiven);
 		String prev_key;
 		String current_value="";
 		if(networkIds.headMap(shaId).isEmpty()) prev_key=networkIds.lastKey();
@@ -407,7 +294,7 @@ public class ReplicationPrimaryRoutingServer extends ReplicationRoutingServer {
 			if(networkIds.isEmpty())
 			{
 				lastIdGiven=1;
-				String shaId=hash(lastIdGiven);
+				String shaId=Utilities.hash(lastIdGiven);
 				networkIds.put(shaId,split[1]);
 				reply=lastIdGiven+"-"+shaId+"-"+shaId+"-"+split[1]+"-"+shaId;
 			}

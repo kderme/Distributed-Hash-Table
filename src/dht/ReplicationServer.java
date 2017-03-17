@@ -23,15 +23,15 @@ public class ReplicationServer extends Server{
 	{
 		console.logEntry();
 		boolean result=true;
-		if(RoutingServer.compareHash(leastHash,maxHash)<0)
+		if(Utilities.compareHash(leastHash,maxHash)<0)
 		{
-			result=result && (RoutingServer.compareHash(leastHash,key)<=0);
-			result=result && (RoutingServer.compareHash(maxHash,key)>0);
+			result=result && (Utilities.compareHash(leastHash,key)<=0);
+			result=result && (Utilities.compareHash(maxHash,key)>0);
 		}
 		else
 		{
-			result=result && (RoutingServer.compareHash(leastHash,key)<=0);
-			result=result || (RoutingServer.compareHash(maxHash,key)>0);
+			result=result && (Utilities.compareHash(leastHash,key)<=0);
+			result=result || (Utilities.compareHash(maxHash,key)>0);
 		}
 		console.logExit();
 		return result;
@@ -41,7 +41,7 @@ public class ReplicationServer extends Server{
 	{
 		console.logEntry();
 		String result="";
-		if(RoutingServer.compareHash(low,leastHash)>=0)
+		if(Utilities.compareHash(low,leastHash)>=0)
 		{
 			String current_key,current_value;
 			console.log("one Margin low: "+leastHash+"\nMarginHigh: "+low);
@@ -145,7 +145,7 @@ public class ReplicationServer extends Server{
 		String result=low+"-";
 		String current_key,current_value;
 		ArrayList<String> temp=new ArrayList<String>();
-		if(RoutingServer.compareHash(low,leastHash)<=0)
+		if(Utilities.compareHash(low,leastHash)<=0)
 		{
 			Iterator<String> iter=replicaData.subMap(low,leastHash).keySet().iterator();
 			if(iter.hasNext())
@@ -302,7 +302,7 @@ public class ReplicationServer extends Server{
 		String marginHigh=lowReplica;
 		replicaLeastHash=lowReplica;
 		console.log("marginLow:"+marginLow+"\nmarginHigh:"+marginHigh);
-		if(RoutingServer.compareHash(marginLow,marginHigh)<0)
+		if(Utilities.compareHash(marginLow,marginHigh)<0)
 		{
 			Iterator<String> iter=replicaData.subMap(marginLow,marginHigh).keySet().iterator();
 			if(iter.hasNext())
@@ -508,7 +508,7 @@ public class ReplicationServer extends Server{
 		console.logEntry();
 		ArrayList<String> temp=new ArrayList<String>();
 		String result="";
-		if(RoutingServer.compareHash(low,high)<=0)
+		if(Utilities.compareHash(low,high)<=0)
 		{
 			String current_key,current_value;
 			Iterator<String> iter=replicaData.subMap(low,high).keySet().iterator();

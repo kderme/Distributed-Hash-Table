@@ -52,6 +52,7 @@ public class RoutingServer extends Thread{
 		this.oneIp=oneIp;
 		this.onePort=onePort;
 		this.console=new Console(myPort+"","logs"+File.separator+myPort+".txt");
+		console.log("Routing Server");
 		//this.console=new Console("D:\\output"+myPort+".txt");
 	}
 
@@ -78,7 +79,7 @@ public class RoutingServer extends Thread{
 			String mySid = spl[0];
 			myId = Integer.parseInt(mySid);
 			//TODO we keep in track number of nodes. Id is not the best way
-			myShaId = hash(mySid);
+			myShaId = Utilities.hash(mySid);
 
 			//----take range
 			start=spl[1];
@@ -222,7 +223,7 @@ public class RoutingServer extends Thread{
 	    	  System.out.println("Exception happened");
 	        System.err.println( ie );
 	      }
-	    //System.out.println("There "+leave_count);
+	    System.out.println("There "+leave_count);
 	    }
 
 	  private boolean processInput( SocketChannel sc ) throws IOException {
@@ -414,7 +415,7 @@ console.log("position="+sendBack.position()+" limit="+sendBack.limit());
 			if(spl.length==3){
 				// this means range become smaller (new came) so let`s send data at prev (=new)
 				String reply=server.action("NEWLOW-"+start);
-				sendMessage(spl[2],reply);
+				Utilities.sendMessage(spl[2],reply,console);
 			}
 		}
 		else if(newMessage.startsWith("NEWDATA-")){
@@ -430,7 +431,7 @@ console.log("position="+sendBack.position()+" limit="+sendBack.limit());
 			if(spl.length==3){
 				// this means range become smaller (new came) so let`s send data at prev (=new)
 				String reply=server.action("NEWLOW2-"+spl[1]);
-				sendMessage(spl[2],reply);
+				Utilities.sendMessage(spl[2],reply,console);
 			}
 		}
 		else
@@ -449,7 +450,7 @@ console.log("position="+sendBack.position()+" limit="+sendBack.limit());
 		 * add my #ip:port/currentClid# to take Answer
 		 */
 			String[] parts=newMessage.split(",",2);
-			if(!parts[0].equals("*")) parts[0]=hash(parts[0]);
+			if(!parts[0].equals("*")) parts[0]=Utilities.hash(parts[0]);
 			int i;
 			newMessage=parts[0];
 			for (i=1;i<parts.length;i++) newMessage=newMessage+","+parts[i];
@@ -486,7 +487,7 @@ console.log("position="+sendBack.position()+" limit="+sendBack.limit());
 						String answer=server.action(newMessage);
 						String token="ANSWER*";
 						this.numberOfNodes.put(Integer.valueOf(sendBack[1]),new Integer(1));
-						sendMessage(sendBack[0], token+"-"+sendBack[1]+"-"+answer);
+						Utilities.sendMessage(sendBack[0], token+"-"+sendBack[1]+"-"+answer,console);
 					}
 				}
 				else
@@ -501,7 +502,7 @@ console.log("position="+sendBack.position()+" limit="+sendBack.limit());
 						outNext.println(sendMessage);
 					}
 					else this.numberOfNodes.put(Integer.valueOf(sendBack[1]),Integer.parseInt(message[2]));
-					sendMessage(sendBack[0], token+"-"+sendBack[1]+"-"+answer);
+	Utilities.sendMessage(sendBack[0], token+"-"+sendBack[1]+"-"+answer,console);
 				}	
 			}
 			else
@@ -510,7 +511,7 @@ console.log("position="+sendBack.position()+" limit="+sendBack.limit());
 				//	send back reply
 				String [] sendBack=sendMessage.split("@")[1].split("/",2);
 				String token="ANSWER";
-				sendMessage(sendBack[0], token+"-"+sendBack[1]+"-"+answer);
+	Utilities.sendMessage(sendBack[0], token+"-"+sendBack[1]+"-"+answer,console);
 			}
 		}
 		else{
@@ -572,7 +573,8 @@ console.log("position="+sendBack.position()+" limit="+sendBack.limit());
 		leave_count=0;
 		console.logEntry();
 		String message="Leaving-"+this.myShaId;
-		if(!leaveMessage.startsWith("LeaveForced") && sendMessageWithReply(oneIp,onePort,message).equals("Removed")){
+		if(!leaveMessage.startsWith("LeaveForced") && 
+				Utilities.sendMessageWithReply(oneIp,onePort,message,console).equals("Removed")){
 			console.logExit();
 			check_interrupted=true;
 			return;
@@ -588,76 +590,16 @@ console.log("position="+sendBack.position()+" limit="+sendBack.limit());
 	
 	protected void updateStart(String start) {
 		this.start=start;
-		this.amiFirst=(compareHash(start,myShaId)>=0);		
+		this.amiFirst=(Utilities.compareHash(start,myShaId)>=0);		
 	}
 
 	protected boolean isMine(String key) {
 		if(key.equals("*")) return true;
-		if (compareHash(start,end)>=0)
-			return compareHash(start,key)<=0 || compareHash(key,end)<0 ;
-		return compareHash(start,key)<=0  && compareHash(key,end)<0 ;
-	}
-	
-	public static int compareHash(String h1,String h2){
-		for(int i=0;i<40;i++){
-			int d=h1.charAt(i)-h2.charAt(i);
-			if(d!=0)
-			return d;
-		}
-		return 0;
+		if (Utilities.compareHash(start,end)>=0)
+			return Utilities.compareHash(start,key)<=0 || Utilities.compareHash(key,end)<0 ;
+		return Utilities.compareHash(start,key)<=0  && Utilities.compareHash(key,end)<0 ;
 	}
 
-	protected boolean sendMessage(String ip, int port, String message){
-        console.log("Sending message: "+message+"to: "+ip+":"+port);
-        while(true){
-                try{
-                        Socket socket = new Socket(ip,port);
-                        PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-                        out.println(message);
-                        socket.close();
-                        return true;
-                } catch(IOException e){
-                        console.log("can`t send to "+port);
-                        continue;
-                }
-        }
-	}
-
-	
-	protected String sendMessageWithReply(String ip, int port, String message){
-		console.log("Sending message: "+message);
-		console.log("to: "+ip+":"+port);
-		try{
-			Socket socket = new Socket(ip,port);
-			PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-			BufferedReader inOne= new BufferedReader(
-	                new InputStreamReader(socket.getInputStream()));
-			out.println(message);
-			String reply=inOne.readLine();
-			console.log("This is the reply: "+reply);
-			socket.close();
-			return reply;
-		} catch(IOException e){
-			e.printStackTrace();
-			return "";
-		}
-	}
-
-	protected boolean sendMessage(String iPort,String message){
-		
-		//---take routing info
-		String next []=iPort.split(":");
-		
-		return sendMessage(next[0],new Integer(next[1]),message);
-	}
-		
-	public static String hash(String s){
-		return org.apache.commons.codec.digest.DigestUtils.sha1Hex(s);
-	}
-	
-	public static String hash(int n){
-		return hash(n+"");
-	}
 	
 	public void main(String [] args){
 		new RoutingServer("127.0.0.1", 5002,"127.0.0.1",5000);

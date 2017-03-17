@@ -28,7 +28,7 @@ public class Server {
 	{
 		console.logEntry();
 		String result="";
-		if(RoutingServer.compareHash(low,leastHash)>=0)
+		if(Utilities.compareHash(low,leastHash)>=0)
 		{
 			String current_key,current_value;
 			Iterator<String> iter=data.subMap(leastHash,low).keySet().iterator();

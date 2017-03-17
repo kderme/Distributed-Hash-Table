@@ -12,64 +12,33 @@ import java.net.Socket;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
-public class PrimaryRoutingServer extends RoutingServer {
+public class PrimaryRoutingServer extends Thread {
 
-	protected int lastIdGiven;
-	protected SortedMap<String,String> networkIds=null;
-	private ServerSocket SrvSocket;
-	private Socket CltSocket;
-	protected boolean isprimaryRunning;
+	protected String myIp;
+	protected int myPort;
+	protected RoutingServer rs=null;
 	protected Console console;
 	
-	public PrimaryRoutingServer(String myIp,int myPort,String oneIp,int onePort)
-	{
-		super(myIp,myPort,oneIp,onePort);
-		//lastIdGiven=1;
-		//myId=lastIdGiven;
-		//myShaId=hash(myId);
-		networkIds=new TreeMap<String,String>();
-		//networkIds.put(myShaId,myIp+":"+myPort);
-		lastIdGiven=0;
-		isprimaryRunning=false;
-		//this.console=new Console(onePort);
-		this.console=new Console(onePort+"","logs"+File.separator+myPort+".txt");
+	protected int lastIdGiven=0;
+	protected SortedMap<String,String> networkIds=new TreeMap<String,String>();;
+	public PrimaryRoutingServer(String myIp,int myPort){
+		this.myIp=myIp;
+		this.myPort=myPort;
+		this.console=new Console(myPort+"","logs"+File.separator+myPort+".txt");
+		console.log("ReplicationPrimaryRoutingServer");
 	}
 	
 	public void run(){
-		if(!isprimaryRunning) {
-			isprimaryRunning=true;
-			receiveMessages();
-		}
-		else
-		{
-			super.run();
-		}
-	}
-	
-	protected void sendMessage(String Ip, String port, String message, String errorMessage)
-	{
-		console.logEntry();
-		console.log("Sending message: "+message);
-		console.log("to: "+Ip+":"+port);
-		try{	
-			CltSocket=new Socket(Ip,Integer.parseInt(port));
-			new PrintWriter(CltSocket.getOutputStream(), true).println(message);
-			CltSocket.close();
-		} catch (IOException e) {
-			e.printStackTrace();
-			console.log(errorMessage);
-			System.exit(1);
-		}
-		console.logExit();
-	}
-	
-	
+		receiveMessages();
+	}	
+		
 	protected void receiveMessages()
 	{
-		console.logEntry(); 
+		console.logEntry();
+		ServerSocket SrvSocket=null;
 		try {
-			   console.log("Connecting to "+this.oneIp+" to port "+this.onePort);
-			   SrvSocket=new ServerSocket(this.onePort,5,InetAddress.getByName(this.oneIp));
+			   console.log("Connecting to "+this.myIp+" to port "+this.myPort);
+			   SrvSocket=new ServerSocket(this.myPort,5,InetAddress.getByName(this.myIp));
 			   while(true){
 				  
 					   Socket socket=SrvSocket.accept();
@@ -84,7 +53,6 @@ public class PrimaryRoutingServer extends RoutingServer {
 					   PS.println(reply);
 					   
 			   }
-			   		
 		} catch (IOException e) {
 			e.printStackTrace();
 			console.log("Socket "+this.myPort+" Closed. Exiting...");
@@ -101,7 +69,6 @@ public class PrimaryRoutingServer extends RoutingServer {
 		}
 	}
 	
-	
 	protected void updateNext(String receiver,String message)
 	{
 		console.logEntry();
@@ -113,7 +80,7 @@ public class PrimaryRoutingServer extends RoutingServer {
 		}
 		*/
 		String network[]=receiver.split(":");
-		sendMessage(network[0],network[1],"NEWNEXT-"+message,receiver+" didn't respond! Exit");
+		Utilities.sendMessage(network[0],network[1],"NEWNEXT-"+message,receiver+" didn't respond! Exit",console);
 		console.logExit();
 	}
 	
@@ -132,7 +99,7 @@ public class PrimaryRoutingServer extends RoutingServer {
 		//if (next_key.equals(myShaId)) start=next_low;
 		//else
 		//{	
-			sendMessage(network[0],network[1],"NEWLOW-"+next_low+"-"+new_pos,"Id "+next_key+" didn't respond! Exit");
+			Utilities.sendMessage(network[0],network[1],"NEWLOW-"+next_low+"-"+new_pos,"Id "+next_key+" didn't respond! Exit",console);
 		//}
 		result=new_low+"-"+new_high;
 		console.logExit();
@@ -150,7 +117,7 @@ public class PrimaryRoutingServer extends RoutingServer {
 		//if(next_key.equals(myShaId)) start=next_low;
 		//else
 		//{
-			sendMessage(network[0],network[1],"NEWLOW2-"+next_low+"-"+current_value,"Id "+next_key+" didn't respond! Exit");
+			Utilities.sendMessage(network[0],network[1],"NEWLOW2-"+next_low+"-"+current_value,"Id "+next_key+" didn't respond! Exit",console);
 		//}
 		console.logExit();
 	}
@@ -160,19 +127,17 @@ public class PrimaryRoutingServer extends RoutingServer {
 		console.logEntry();
 		console.log("No Replications used");
 		lastIdGiven++;
-		String shaId=hash(lastIdGiven);
+		String shaId=Utilities.hash(lastIdGiven);
 		String prev_key;
 		String current_value="";
 		if(networkIds.headMap(shaId).isEmpty()) prev_key=networkIds.lastKey();
 		else prev_key=networkIds.headMap(shaId).lastKey();
 		current_value=networkIds.get(prev_key);
-		console.log("We are Calling updateNext With parameters: "+current_value+" and "+message);
 		updateNext(current_value,message);
 		String next_key;
 		if(networkIds.tailMap(shaId).isEmpty()) next_key=networkIds.firstKey();
 		else next_key=networkIds.tailMap(shaId).firstKey();
 		current_value=networkIds.get(next_key);
-		console.log("Inserting in map: "+shaId+", "+message);
 		networkIds.put(shaId,message);
 		String result="";
 		result=result+lastIdGiven+"-"+divideRanges(prev_key,shaId,next_key);
@@ -195,7 +160,7 @@ public class PrimaryRoutingServer extends RoutingServer {
 		if(networkIds.tailMap(message).isEmpty()) next_key=networkIds.firstKey();
 		else next_key=networkIds.tailMap(message).firstKey();
 		String curr_value=networkIds.get(next_key);
-		//System.out.println("Connect "+prev_value+" to "+curr_value);
+		System.out.println("Connect "+prev_value+" to "+curr_value);
 		updateNext(prev_value,curr_value);
 		mergeRanges(prev_key,remove_location,next_key);
 		console.logExit();
@@ -210,16 +175,14 @@ public class PrimaryRoutingServer extends RoutingServer {
 		if(split[0].equals("HELLO"))
 		{
 			console.log("Entering here sending this: "+split[1]);
-			//***************************
 			if(networkIds.isEmpty())
 			{
 				lastIdGiven=1;
-				String shaId=hash(lastIdGiven);
+				String shaId=Utilities.hash(lastIdGiven);
 				networkIds.put(shaId,split[1]);
 				reply=lastIdGiven+"-"+shaId+"-"+shaId+"-"+split[1];
 			}
 			else
-			//****************************	
 				reply=newNode(split[1]);
 		}
 		else if(split[0].equals("Leaving"))
